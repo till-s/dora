@@ -1,0 +1,180 @@
+<!DOCTYPE haml>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.dev.js"></script>
+<link href="tree.css" type="text/css" rel="stylesheet">
+<title>A Tree</title>
+<script>
+
+function isCollapsed( n ) {
+    return ! n.classList.contains("active");
+}
+
+function gather(l, n) {
+  var cc  = n.childNodes;
+  var len = cc.length, i;
+  //console.log("Gather " + cc.length + " nodes");
+  for ( i = 0; i < len; i++ ) {
+	  if ( cc[i].nodeType == 1 ) {
+		  // ELEMENT
+		  if ( cc[i].classList.contains("leaf") ) {
+              if ( ! cc[i].classList.contains("WO") ) {
+			      l.push( cc[i] );
+              }
+		  } else if ( cc[i].className !== "nested" || ! isCollapsed( cc[i] ) ) {
+			  gather( l, cc[i] );
+		  }
+	  }
+  }
+}
+
+function bpress() {
+var l = [], i;
+  gather(l, document.body);
+  for (i=0; i<l.length; i++ ) {
+    console.log( l[i] );
+  }
+}
+
+function getNested(el) {
+    return el.parentElement.querySelector(".nested");
+}
+
+function changeSubscription(subs, nod) {
+
+	var l   = [];
+	var cmd;
+
+	gather(l, nod);
+
+	if ( l.length > 0 ) {
+		var i;
+
+		var lid = new Array( l.length );
+
+		if ( subs ) {
+			for (i=0; i<l.length; i++ ) {
+				l[i].value = "";
+				lid[i] = parseInt(l[i].id.match("[0-9]+")[0]);
+			}
+			cmd = "subscribe";
+		} else {
+			for (i=0; i<l.length; i++ ) {
+				lid[i] = parseInt(l[i].id.match("[0-9]+")[0]);
+			}
+			cmd = "unsubscribe";
+		}
+
+		var dict = {};
+		dict[cmd] = lid;
+
+//		window.treeSocket.emit('json', JSON.stringify( dict ) );
+		window.treeSocket.emit(cmd, JSON.stringify( lid ) );
+
+	}
+}
+
+function toggleCaret() {
+	var nn = getNested( this );
+    var cmd;
+	if ( nn.classList.contains("active") ) {
+		localStorage.removeItem("active_"+nn.id);
+        cmd = false;
+	} else {
+		localStorage.setItem("active_"+nn.id,"true");
+        cmd = true;
+	}
+	nn.classList.toggle("active");
+	this.classList.toggle("caret-down");
+
+	changeSubscription( cmd, nn );
+}
+
+function connectEvents() {
+
+    console.log(document.domain);
+    console.log(location.port);
+
+
+	window.treeSocket = new io();
+
+
+	window.treeSocket.on('connect', function() {
+		changeSubscription(true, document.body);
+	});
+
+	window.treeSocket.on('disconnect', function() {
+		console.error('Chat socket closed unexpectedly');
+		var l = [], i;
+		gather(l, document.body);
+		for (i=0; i<l.length; i++ ) {
+			var el = document.getElementById( l[i].id );
+			el.value = "";
+		}
+	});
+
+    window.treeSocket.on('update', function(data) {
+        console.log('UPDATE', data);
+    });
+
+	if ( 0 ) {
+	window.treeSocket.onmessage = function(e) {
+		var data = JSON.parse(e.data);
+		var vals = data['update'];
+		var id;
+		for ( id in vals ) {
+			if ( vals.hasOwnProperty( id ) ) {
+				document.getElementById( id ).value = vals[id];
+			}
+		};
+	}
+
+	window.treeSocket.onclose = function(e) {
+		console.error('Chat socket closed unexpectedly');
+		var l = [], i;
+		gather(l, document.body);
+		for (i=0; i<l.length; i++ ) {
+			var el = document.getElementById( l[i].id );
+			el.value = "";
+		}
+	};
+
+	window.treeSocket.onopen = function(e) {
+		changeSubscription(true, document.body);
+	};
+    }
+
+	var toggler = document.getElementsByClassName("caret");
+	var i;
+
+	for (i = 0; i < toggler.length; i++) {
+
+		var nn = getNested(toggler[i]); 
+		if ( "true" == localStorage.getItem("active_"+nn.id) ) {
+			nn.classList.toggle("active"); 
+			toggler[i].classList.toggle("caret-down");
+		}
+
+	}
+	$(document).on("change","input.int",function() {
+			alert( parseInt(this.value, 0) );
+			});
+	$(document).on("click", ".caret", toggleCaret);
+
+	console.log("Events CONNECTED");
+}
+
+</script>
+</head>
+<body>
+<ul id="theTreeTop"> {% block content %}<div id="content">{% endblock %}</div> </ul> 
+<button type="button" onclick=bpress()>PRESS</button>
+
+<script>
+//$("#content").load("guts.html", connectEvents);
+$(connectEvents);
+</script>
+
+</body>
+</html>
