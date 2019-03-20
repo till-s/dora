@@ -7,6 +7,7 @@ import os
 import yaml_cpp
 import pycpsw
 import io
+import json
 from   cityhash import CityHash32
 
 _ReprOther  = 0
@@ -24,6 +25,7 @@ class LeafEl(pycpsw.AsyncIO):
     self._writeOnly  = False
     self._hash       = CityHash32( path.toString() )
     self._id         = "v_{:d}".format(self._hash)
+    self._refcnt     = 0
     try:
       if None == vb:
         vb = pycpsw.Val_Base.create( self._path )
@@ -35,6 +37,21 @@ class LeafEl(pycpsw.AsyncIO):
         self._reprUndef = False
     except pycpsw.InterfaceNotImplementedError:
       self._repr = _ReprOther
+
+  def getRef(self):
+    return self._refcnt
+
+  def incRef(self):
+    if self._refcnt == 0:
+      self.create()
+    self._refcnt += 1
+    return self._refcnt
+
+  def decRef(self):
+    self._refcnt -= 1
+    if 0 == self._refcnt:
+      self.destroy()
+    return self._refcnt
 
   def reprIsUndef(self):
     return self._reprUndef
@@ -76,6 +93,21 @@ class LeafEl(pycpsw.AsyncIO):
   def callback(self, *args):
     pass
 
+  def create(self):
+    if self.fact_ != None:
+      self.val_ = self.fact_.create( self.getPath() )
+
+  def destroy(self):
+    self.val_ = None
+
+  def getValAsync(self):
+    if not self.isWriteOnly() and self.val_ != None:
+      self.val_.getValAsync( self )
+
+  def setVal(self, val):
+    if not self.isReadOnly() and self.val_ != None:
+      self.val_.setVal( val )
+
 class ScalValEl(LeafEl):
 
   def __init__(self, path):
@@ -83,6 +115,7 @@ class ScalValEl(LeafEl):
       self._svb = pycpsw.ScalVal_Base.create( path )
     except pycpsw.InterfaceNotImplementedError:
       self._svb = None
+    self.cachedVal_ = None
 
     super(ScalValEl, self).__init__(path, self._svb)
 
@@ -99,17 +132,21 @@ class ScalValEl(LeafEl):
     # if this is 'other' it is not a ScalVal but could still be a DoubleVal
     if self.getRepr() in (_ReprOther, _ReprFloat):
       try:
-        pycpsw.DoubleVal.create( self.getPath() )
+        self.fact_ = pycpsw.DoubleVal
+        self.fact_.create( self.getPath() )
         self.setReadOnly( False )
       except pycpsw.InterfaceNotImplementedError:
-        pycpsw.DoubleVal_RO.create( self.getPath() )
+        self.fact_ = pycpsw.DoubleVal_RO
+        self.fact_.create( self.getPath() )
       self._isFloat = True
     else:
       try:
-        pycpsw.ScalVal.create( self.getPath() )
+        self.fact_ = pycpsw.ScalVal
+        self.fact_.create( self.getPath() )
         self.setReadOnly( False )
       except pycpsw.InterfaceNotImplementedError:
-        pycpsw.ScalVal_RO.create( self.getPath() )
+        self.fact_ = pycpsw.ScalVal_RO
+        self.fact_.create( self.getPath() )
       self._isFloat = False
 
   def getHtml(self):
@@ -137,7 +174,13 @@ class ScalValEl(LeafEl):
 
   def callback(self, *args):
     if args[0] != None:
-      socketio.emit('update', '{}'.format(args[0])) #, room=self.getHtmlId())
+      if _ReprString == self.getRepr():
+        val = bytearray(args[0]).decode('ascii')
+      else:
+        val = args[0]
+      self._cachedVal = val
+      d = [ ( self.getHtmlId(), val ) ]
+      socketio.emit('update', json.dumps( d ), room=self.getHtmlId())
     
 class CmdEl(LeafEl):
 
@@ -153,6 +196,10 @@ class CmdEl(LeafEl):
     tag, clss, atts, xtra = super(CmdEl, self).getHtml()
     xtra.extend(['Execute'])
     return "button", clss, atts, xtra
+
+  def setVal(self, val):
+    if not self.isReadOnly() and self.val_ != None:
+      self.val_.execute()
 
 class Fixup(pycpsw.YamlFixup):
   def __init__(self):
@@ -274,25 +321,29 @@ def parseOpts(oargs):
 
   ( opts, args ) = getopt.getopt(
                       oargs[1:],
-                      "hf:",
+                      "hFf:",
                       ["help",
                       ])
 
   filename = None
+  fixYaml  = Fixup()
 
   for opt in opts:
     if opt[0] in ('-h', '--help'):
-      print("Usage: {}  [-h] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
+      print("Usage: {}  [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
       print()
       print("          yaml_file            : top-level YAML file to load (required)")
       print("          root_node            : YAML root node (default: \"root\")")
       print("          inc_dir_path         : directory where to look for included YAML files")
       print("                                 default: directory where 'yaml_file' is located")
+      print("          -F                   : no YAML Fixup which removes all communication")
       print()
       print("    --help/-h                  : This message")
       return
     elif opt[0] in ('-f'):
       filename = opt[1]
+    elif opt[0] in ('-F'):
+      fixYaml  = None
 
   if len(args) > 0:
     yamlFile = args[0]
@@ -307,8 +358,6 @@ def parseOpts(oargs):
     yamlIncDir = args[2]
   else:
     yamlIncDir = None
-
-  fixYaml    = Fixup()
 
   rp = pycpsw.Path.loadYamlFile(
               yamlFile,

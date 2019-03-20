@@ -3,12 +3,15 @@ from flask import Flask, render_template, url_for, g, request
 from flask_socketio import SocketIO, join_room, leave_room
 import json
 import genHtml
+from   Poller import Poller
 import sys
 
 app = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = 'xokrot!'
 socketio = SocketIO(app, logger=True)
 genHtml.setSocketio( socketio )
+poll = Poller(2.0)
+poll.start()
 
 def getSocketio():
   return socketio
@@ -31,11 +34,14 @@ def handle_subscription(data):
   ids = json.loads(data)
   for anid in ids:
     print("checking ", anid)
-    el  = theDb[anid]
-    join_room( el.getHtmlId() )
-    elp = el.getPath()
-    print(elp.toString())
-    el.callback(elp.tail().getName()) 
+    try:
+      el  = theDb[anid]
+      join_room( el.getHtmlId() )
+      poll.subscribe( el )
+      elp = el.getPath()
+      print(elp.toString())
+    except KeyError:
+      print("Warning: key {} not found".format(anid))
 
 @socketio.on('unsubscribe')
 def handle_unsubscription(data):
@@ -43,14 +49,19 @@ def handle_unsubscription(data):
   ids = json.loads(data)
   for anid in ids:
     print("checking ", anid)
-    el  = theDb[anid]
-    leave_room( el.getHtmlId() )
-    print(theDb[anid].getPath().toString())
+    try:
+      el  = theDb[anid]
+      poll.unsubscribe( el )
+      leave_room( el.getHtmlId() )
+      print(theDb[anid].getPath().toString())
+    except KeyError:
+      print("Warning: key {} not found".format(anid))
 
 
 @socketio.on('disconnect')
 def handle_disconnect():
   print("DISCONN", request.sid)
+  print("FIXME: need to unsubscribe all IDs")
 
 if __name__ == '__main__':
   rp, filename = genHtml.parseOpts( sys.argv )
