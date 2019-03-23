@@ -41,6 +41,10 @@ function getNested(el) {
     return el.parentElement.querySelector(".nested");
 }
 
+function id2Numeric(id) {
+	return parseInt(id.match("[0-9]+")[0]);
+}
+
 function changeSubscription(subs, nod) {
 
 	var l   = [];
@@ -56,22 +60,22 @@ function changeSubscription(subs, nod) {
 		if ( subs ) {
 			for (i=0; i<l.length; i++ ) {
 				l[i].value = "";
-				lid[i] = parseInt(l[i].id.match("[0-9]+")[0]);
+				lid[i] = id2Numeric(l[i].id);
 			}
 			cmd = "subscribe";
 		} else {
 			for (i=0; i<l.length; i++ ) {
-				lid[i] = parseInt(l[i].id.match("[0-9]+")[0]);
+				lid[i] = id2Numeric(l[i].id);
 			}
 			cmd = "unsubscribe";
 		}
 
+/* FIXME - delete eventually
 		var dict = {};
 		dict[cmd] = lid;
+ */
 
-//		window.treeSocket.emit('json', JSON.stringify( dict ) );
 		window.treeSocket.emit(cmd, JSON.stringify( lid ) );
-
 	}
 }
 
@@ -115,7 +119,14 @@ function connectEvents() {
 	});
 
     window.treeSocket.on('update', function(data) {
-        console.log('UPDATE', data);
+        var dd = JSON.parse( data );
+        for (i=0; i<dd.length; i++) {
+			var el = document.getElementById( dd[i][0] );
+            el.cachedValue = dd[i][1];
+			if ( document.activeElement != el ) {
+				el.value = el.cachedValue;
+			}
+		}
     });
 
 	if ( 0 ) {
@@ -157,10 +168,43 @@ function connectEvents() {
 		}
 
 	}
-	$(document).on("change","input.int",function() {
-			alert( parseInt(this.value, 0) );
-			});
+
+	$(document).on("change","input.leaf,select.leaf",function() {
+
+        var v = this.value;
+
+		if ( this.classList.contains("int") ) {
+			v = parseInt( this.value, 0 );			
+
+			if ( v != v ) {
+				alert( "Invalid Numerical Entry" );
+				if ( typeof( this.cachedValue ) != "undefined" ) {
+					this.value = this.cachedValue;
+				}
+				return;
+			}
+		}
+		// So this goes into the readback when blurred
+		this.cachedValue = this.value;
+		var l = [];
+		var p = [];
+		p.push( id2Numeric( this.id ) );
+		p.push( v                     );
+		l.push( p                     );
+		window.treeSocket.emit( "setVal", JSON.stringify( l ) );
+		});
+
 	$(document).on("click", ".caret", toggleCaret);
+
+	$(document).on("click", "button.cmd", function() {
+		window.treeSocket.emit( "setVal", "[ [ " + id2Numeric( this.id ) + ", 1 ] ]" );
+	});
+
+	$(document).on("blur",  ".leaf", function() {
+		if ( typeof(this.cachedValue) != "undefined" ) {
+			this.value = this.cachedValue;
+		}
+	});
 
 	console.log("Events CONNECTED");
 }

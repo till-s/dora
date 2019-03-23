@@ -9,11 +9,17 @@ import pycpsw
 import io
 import json
 from   cityhash import CityHash32
+import flask_socketio
+import eventlet.semaphore
 
 _ReprOther  = 0
 _ReprInt    = 1
 _ReprString = 2
 _ReprFloat  = 3
+
+def setSocketio(sio):
+  global _socketio
+  _socketio = sio
 
 class LeafEl(pycpsw.AsyncIO):
 
@@ -26,6 +32,7 @@ class LeafEl(pycpsw.AsyncIO):
     self._hash       = CityHash32( path.toString() )
     self._id         = "v_{:d}".format(self._hash)
     self._refcnt     = 0
+    self._res        = list()
     try:
       if None == vb:
         vb = pycpsw.Val_Base.create( self._path )
@@ -90,23 +97,32 @@ class LeafEl(pycpsw.AsyncIO):
   def getHtmlId(self):
     return self._id
 
-  def callback(self, *args):
-    pass
-
   def create(self):
     if self.fact_ != None:
-      self.val_ = self.fact_.create( self.getPath() )
+      self._val = self.fact_.create( self.getPath() )
 
   def destroy(self):
-    self.val_ = None
+    self._val = None
 
-  def getValAsync(self):
-    if not self.isWriteOnly() and self.val_ != None:
-      self.val_.getValAsync( self )
+  def callback(self, *args):
+    ## Assume lit pop is atomic (thread safe)!
+    r = self._res.pop(0)
+    r.append( self, args )
+
+  def update(self, args):
+    pass
+
+  def getValAsync(self, result):
+    if not self.isWriteOnly() and self._val != None:
+      self._val.getValAsync( self )
+      ## Assume list append is atomic (thread safe)!
+      self._res.append( result )
+      return True
+    return False
 
   def setVal(self, val):
-    if not self.isReadOnly() and self.val_ != None:
-      self.val_.setVal( val )
+    if not self.isReadOnly() and self._val != None:
+      self._val.setVal( val )
 
 class ScalValEl(LeafEl):
 
@@ -158,7 +174,7 @@ class ScalValEl(LeafEl):
         if self.isReadOnly():
           atts += ' disabled=true'
         for e in enm.getItems():
-            xtra.extend('{:<{}s}<option>{}</option>'.format('', 2, e[0]))
+            xtra.append('{:<{}s}<option>{}</option>'.format('', 2, e[0]))
         return tag, clss, atts, xtra
     tag  = 'input'
     atts += ' type="text" value="???"'
@@ -172,34 +188,41 @@ class ScalValEl(LeafEl):
     return tag, clss, atts, xtra
 # self.idnt('<tr><td>{}</td><td><input type="text" class="leaf" id=0x{:x} value="{}" onchange="alert(parseInt(this.value,0))"></input>
 
-  def callback(self, *args):
+  def update(self, args):
     if args[0] != None:
       if _ReprString == self.getRepr():
-        val = bytearray(args[0]).decode('ascii')
+        print("decoding {}".format(bytearray(args[0]))) 
+        barr = bytearray(args[0]) 
+        try:
+          end = barr.index(0)
+        except ValueError:
+          end = len(barr)
+        val = barr[0:end].decode('ascii')
       else:
         val = args[0]
       self._cachedVal = val
       d = [ ( self.getHtmlId(), val ) ]
-      socketio.emit('update', json.dumps( d ), room=self.getHtmlId())
+      _socketio.emit('update', json.dumps( d ), room=self.getHtmlId())
+
     
 class CmdEl(LeafEl):
 
   def __init__(self, path):
     if path.getNelms() > 1:
       raise pycpsw.InterfaceNotImplementedError("Arrays of commands not supported")
-    pycpsw.Command.create( path )
+    self._val = pycpsw.Command.create( path )
     super(CmdEl, self).__init__( path )
     self.setReadOnly( False )
     self.setWriteOnly( True )
 
   def getHtml(self):
     tag, clss, atts, xtra = super(CmdEl, self).getHtml()
-    xtra.extend(['Execute'])
+    xtra.append('Execute')
+    clss += " cmd"
     return "button", clss, atts, xtra
 
   def setVal(self, val):
-    if not self.isReadOnly() and self.val_ != None:
-      self.val_.execute()
+    self._val.execute()
 
 class Fixup(pycpsw.YamlFixup):
   def __init__(self):
@@ -243,9 +266,18 @@ class HtmlVisitor(pycpsw.PathVisitor):
         self.idnt('<li><table class="leafTable">')
         for l in leaves:
           try:
-            if l.getNelms() > self._maxExpand:
+            nelms = l.getNelms()
+            if nelms > 1:
+               try:
+                 vb = pycpsw.Val_Base.create( here.findByName( l.getName() ) )
+                 if vb.getEncoding() == "ASCII":
+                   # don't expand strings
+                   nelms = 1
+               except pycpsw.CPSWError:
+                 pass
+            if nelms > self._maxExpand:
               raise RuntimeError("Leaves with more than {} elements not supported".format( self._maxExpand ))
-            if l.getNelms() > 1:
+            if nelms > 1:
               idxRange = [ '[{}]'.format(i) for i in range(l.getNelms())]
             else:
               idxRange = [ '' ]
@@ -381,10 +413,6 @@ def writeFile(rp, filename):
     fd.close()
 
   return vis.getDict()
-
-def setSocketio(sio):
-  global socketio
-  socketio = sio
 
 if __name__ == '__main__':
   rp, filename = parseOpts( sys.argv )
