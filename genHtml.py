@@ -89,7 +89,7 @@ class LeafEl(pycpsw.AsyncIO):
       clss = " WO"
     else:
       clss = ""
-    return "div", clss, '', []
+    return "div", clss, '', [], ''
 
   def getHash(self):
     return self._hash
@@ -126,12 +126,21 @@ class LeafEl(pycpsw.AsyncIO):
 
 class ScalValEl(LeafEl):
 
+  _checkId   = 0
+
+  @staticmethod
+  def checkId():
+    ScalValEl._checkId += 1
+    return ScalValEl._checkId
+
   def __init__(self, path):
+    self._isSigned = False
     try:
       self._svb = pycpsw.ScalVal_Base.create( path )
+      self._isSigned = self._svb.isSigned()
     except pycpsw.InterfaceNotImplementedError:
       self._svb = None
-    self.cachedVal_ = None
+    self._cachedVal = None
 
     super(ScalValEl, self).__init__(path, self._svb)
 
@@ -165,8 +174,12 @@ class ScalValEl(LeafEl):
         self.fact_.create( self.getPath() )
       self._isFloat = False
 
+  def isSigned(self):
+    return self._isSigned
+
   def getHtml(self):
-    tag, clss, atts, xtra = super(ScalValEl, self).getHtml()
+    tag, clss, atts, xtra, xcol = super(ScalValEl, self).getHtml()
+    enm = None
     if None != self._svb:
       enm = self._svb.getEnum()
       if None != enm:
@@ -175,17 +188,23 @@ class ScalValEl(LeafEl):
           atts += ' disabled=true'
         for e in enm.getItems():
             xtra.append('{:<{}s}<option>{}</option>'.format('', 2, e[0]))
-        return tag, clss, atts, xtra
+#FLOX        xtra.append('<td></td>')
+        return tag, clss, atts, xtra, xcol
     tag  = 'input'
     atts += ' type="text" value="???"'
     if self.isReadOnly():
       atts += ' readonly'
+    if self._isFloat:
+      clss += " float"
     else:
-      if self._isFloat:
-        clss += " float"
+      clss += " int"
+    if None == enm and not self._isFloat and _ReprString != self.getRepr():
+      if not self.isSigned():
+        checked = 'checked'
       else:
-        clss += " int"
-    return tag, clss, atts, xtra
+        checked = ''
+      xcol = '<input type="checkbox" id="c_{:x}" class="hexFmt {}" {}></input>'.format( self.checkId(), checked, checked )
+    return tag, clss, atts, xtra, xcol
 # self.idnt('<tr><td>{}</td><td><input type="text" class="leaf" id=0x{:x} value="{}" onchange="alert(parseInt(this.value,0))"></input>
 
   def update(self, args):
@@ -216,10 +235,11 @@ class CmdEl(LeafEl):
     self.setWriteOnly( True )
 
   def getHtml(self):
-    tag, clss, atts, xtra = super(CmdEl, self).getHtml()
+    tag, clss, atts, xtra, xcol = super(CmdEl, self).getHtml()
     xtra.append('Execute')
+#FLOX    xtra.append('<td></td>')
     clss += " cmd"
-    return "button", clss, atts, xtra
+    return "button", clss, atts, xtra, xcol
 
   def setVal(self, val):
     self._val.execute()
@@ -287,13 +307,13 @@ class HtmlVisitor(pycpsw.PathVisitor):
               for ELT in [ScalValEl, CmdEl]:
                 try:
                   el = ELT( pn )
-                  tag, clss, atts, xtra = el.getHtml()
+                  tag, clss, atts, xtra, xcol = el.getHtml()
                   # JS integer range is only 2**64 - 2**53
                   h  = el.getHash()
                   self.idnt('<tr><td>{}</td><td><{} id={} class="leaf{}" {}>'.format(nam, tag, el.getHtmlId(), clss, atts) );
                   for xt in xtra:
                     self.idnt('{:<{}s}{}'.format('', 2, xt))
-                  self.idnt('{:<{}s}</{}></td><td>{}</td>'.format('', 2, tag, l.getDescription()))
+                  self.idnt('{:<{}s}</{}></td><td>{}</td><td>{}</td>'.format('', 2, tag, xcol, l.getDescription()))
                    
 #                val = pycpsw.ScalVal_Base.create( here.findByName( nam ) )
 #                enm = val.getEnum()

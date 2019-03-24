@@ -95,11 +95,81 @@ function toggleCaret() {
 	changeSubscription( cmd, nn );
 }
 
+function isHexFmt( el ) {
+	var chkboxes = el.parentElement.parentElement.getElementsByClassName("hexFmt");
+    if ( chkboxes.length > 0 && chkboxes[0].checked ) {
+		return true;
+	}
+	return false;
+}
+
+function updateVal_1(el, isHex, val)
+{
+	if ( val != val ) {
+		// bail if NAN
+		return;	
+	}
+	if ( isHex ) {
+		el.value = "0x" + val.toString(16);
+	} else {
+		el.value = val;
+	}
+}
+
+function updateVal( el ) {
+	if ( typeof(el.cachedValue) != "undefined" ) {
+		updateVal_1( el, isHexFmt( el ), el.cachedValue );
+	}
+}
+
+function flipHex( chkbox ) {
+	var txt = chkbox.parentElement.parentElement.getElementsByClassName("int")[0];
+	var val = parseInt( txt.value, 0 );
+
+	updateVal_1( txt, chkbox.checked, val );
+}
+
+function storeHex( chkbox ) {
+	if ( chkbox.checked != chkbox.classList.contains("checked") ) {
+		localStorage.setItem( "checked_" + chkbox.id, chkbox.checked );
+console.log("storing hex " + chkbox.id + ": " + chkbox.checked);
+	} else {
+		localStorage.removeItem( "checked_" + chkbox.id );
+console.log("deleting hex " + chkbox.id);
+	}
+}
+
+function restoreHex( chkbox ) {
+	var val = localStorage.getItem( "checked_" + chkbox.id );
+console.log("restoring hex " + chkbox.id + ": " + val);
+	if ( val != null ) {
+		chkbox.checked = (val.toLowerCase() == 'true');
+	}
+}
+
+
 function connectEvents() {
 
     console.log(document.domain);
     console.log(location.port);
 
+	var toggler = document.getElementsByClassName("caret");
+
+	var i;
+	for (i = 0; i < toggler.length; i++) {
+
+		var nn = getNested(toggler[i]); 
+		if ( "true" == localStorage.getItem("active_"+nn.id) ) {
+			nn.classList.toggle("active"); 
+			toggler[i].classList.toggle("caret-down");
+		}
+
+	}
+
+	var checkboxes = document.getElementsByClassName("hexFmt");
+	for ( i=0; i < checkboxes.length; i++ ) {
+		restoreHex( checkboxes[i] );
+	}
 
 	window.treeSocket = new io();
 
@@ -124,50 +194,10 @@ function connectEvents() {
 			var el = document.getElementById( dd[i][0] );
             el.cachedValue = dd[i][1];
 			if ( document.activeElement != el ) {
-				el.value = el.cachedValue;
+				updateVal( el );
 			}
 		}
     });
-
-	if ( 0 ) {
-	window.treeSocket.onmessage = function(e) {
-		var data = JSON.parse(e.data);
-		var vals = data['update'];
-		var id;
-		for ( id in vals ) {
-			if ( vals.hasOwnProperty( id ) ) {
-				document.getElementById( id ).value = vals[id];
-			}
-		};
-	}
-
-	window.treeSocket.onclose = function(e) {
-		console.error('Chat socket closed unexpectedly');
-		var l = [], i;
-		gather(l, document.body);
-		for (i=0; i<l.length; i++ ) {
-			var el = document.getElementById( l[i].id );
-			el.value = "";
-		}
-	};
-
-	window.treeSocket.onopen = function(e) {
-		changeSubscription(true, document.body);
-	};
-    }
-
-	var toggler = document.getElementsByClassName("caret");
-	var i;
-
-	for (i = 0; i < toggler.length; i++) {
-
-		var nn = getNested(toggler[i]); 
-		if ( "true" == localStorage.getItem("active_"+nn.id) ) {
-			nn.classList.toggle("active"); 
-			toggler[i].classList.toggle("caret-down");
-		}
-
-	}
 
 	$(document).on("change","input.leaf,select.leaf",function() {
 
@@ -185,14 +215,22 @@ function connectEvents() {
 			}
 		}
 		// So this goes into the readback when blurred
-		this.cachedValue = this.value;
+		this.cachedValue = v;
 		var l = [];
 		var p = [];
 		p.push( id2Numeric( this.id ) );
 		p.push( v                     );
 		l.push( p                     );
 		window.treeSocket.emit( "setVal", JSON.stringify( l ) );
-		});
+		if ( isHexFmt( this ) ) {
+			updateVal_1( this, true, v );
+		}
+	});
+
+	$(document).on("change", ".hexFmt", function() {
+		flipHex ( this );
+		storeHex( this );
+	});
 
 	$(document).on("click", ".caret", toggleCaret);
 
@@ -202,7 +240,7 @@ function connectEvents() {
 
 	$(document).on("blur",  ".leaf", function() {
 		if ( typeof(this.cachedValue) != "undefined" ) {
-			this.value = this.cachedValue;
+			updateVal( this );
 		}
 	});
 
