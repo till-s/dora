@@ -45,3 +45,21 @@ ul, #theTreeTop {
 .leaf {
   width: 100%;
 }
+
+.tooltip {
+  position:   absolute;
+  padding:    2px;
+  display:    none;
+  box-shadow: 0px 4px 8px 0px rgba(0,0,0,0.2);
+  background-color: #dddddd;
+}
+
+.tooltip p {
+  padding:    0px;
+  border:     none;
+  margin:     0px;
+}
+
+.tooltip.show {
+  display: block;
+}

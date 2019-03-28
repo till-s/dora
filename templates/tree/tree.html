@@ -278,6 +278,33 @@ function connectEvents() {
 		}
 	});
 
+	$(document).on("mouseover", ".hexFmt",
+		function() {
+			console.log("OVER");
+			if ( typeof(this.tooltipTimer) != "undefined" && this.tooltipTimer ) {
+				clearTimeout( this.tooltipTimer );
+				this.tooltipTimer = null;
+			}
+			var tip = this.parentNode.getElementsByClassName("tooltip")[0];
+			this.tooltipTimer = setTimeout( function( tip ) {
+					console.log("TIMEOUT: " + tip);
+					if ( ! tip.classList.contains("show") ) {
+						tip.classList.add("show")
+					}
+			}, 2000, tip);
+			console.log("set timeout: " + this.tooltipTimer);
+	});
+	$(document).on("mouseout", ".hexFmt",
+		function() {
+			var tip = this.parentNode.getElementsByClassName("tooltip")[0];
+			var timer = this.tooltipTimer;
+			if ( timer ) {
+				clearTimeout( timer );
+				this.tooltipTimer = null;
+			}
+			tip.classList.remove("show");
+	});
+
 	console.log("Events CONNECTED");
 }
 

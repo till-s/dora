@@ -11,11 +11,19 @@ import json
 from   cityhash import CityHash32
 import flask_socketio
 import eventlet.semaphore
+import jinja2
 
 _ReprOther  = 0
 _ReprInt    = 1
 _ReprString = 2
 _ReprFloat  = 3
+
+_useTemplates = True
+
+j2env = jinja2.Environment(
+         loader     = jinja2.PackageLoader('genHtml','templates'),
+         autoescape = jinja2.select_autoescape(['html', 'xml'])
+       )
 
 def setSocketio(sio):
   global _socketio
@@ -88,7 +96,7 @@ class LeafEl(pycpsw.AsyncIO):
   def isWriteOnly(self):
     return self._writeOnly
 
-  def getHtml(self):
+  def getHtml(self, level):
     if self.isWriteOnly():
       clss = " WO"
     else:
@@ -187,10 +195,10 @@ class ScalValEl(LeafEl):
   def isSigned(self):
     return self._isSigned
 
-  def getHtml(self):
+  def getHtml(self, level):
     if self.arraysOk():
       raise RuntimeError("Cannot generate HTML for ScalVal array")
-    tag, clss, atts, xtra, xcol = super(ScalValEl, self).getHtml()
+    tag, clss, atts, xtra, xcol = super(ScalValEl, self).getHtml( level )
     enm = None
     if None != self._svb:
       enm = self._svb.getEnum()
@@ -200,7 +208,6 @@ class ScalValEl(LeafEl):
           atts += ' disabled=true'
         for e in enm.getItems():
             xtra.append('{:<{}s}<option>{}</option>'.format('', 2, e[0]))
-#FLOX        xtra.append('<td></td>')
         return tag, clss, atts, xtra, xcol
     tag  = 'input'
     atts += ' type="text" value="???"'
@@ -212,12 +219,14 @@ class ScalValEl(LeafEl):
       clss += " int"
     if None == enm and not self._isFloat and _ReprString != self.getRepr():
       if not self.isSigned():
-        checked = 'checked'
+        checked = ' checked'
       else:
         checked = ''
-      xcol = '<input type="checkbox" id="c_{:x}" class="hexFmt {}" {}></input>'.format( self.checkId(), checked, checked )
+      if _useTemplates:
+        xcol = j2env.get_template("hexcheck.html").render(id=self.checkId(), checked=checked, level=level)
+      else:
+        xcol = '<input type="checkbox" id="c_{:x}" class="hexFmt {}" {}><div class="tooltip"><p>Toggle Hex Display Format.</p><p>(Input format always accepts \'0x\' prefix.)</p></div>'.format( self.checkId(), checked, checked )
     return tag, clss, atts, xtra, xcol
-# self.idnt('<tr><td>{}</td><td><input type="text" class="leaf" id=0x{:x} value="{}" onchange="alert(parseInt(this.value,0))"></input>
 
   def update(self, args):
     if self.arraysOk():
@@ -253,10 +262,10 @@ class CmdEl(LeafEl):
     self.setReadOnly( False )
     self.setWriteOnly( True )
 
-  def getHtml(self):
+  def getHtml(self, level):
     if self.arraysOk():
       raise RuntimeError("Cannot generate HTML for CmdVal array")
-    tag, clss, atts, xtra, xcol = super(CmdEl, self).getHtml()
+    tag, clss, atts, xtra, xcol = super(CmdEl, self).getHtml( level )
     xtra.append('Execute')
 #FLOX    xtra.append('<td></td>')
     clss += " cmd"
@@ -328,13 +337,28 @@ class HtmlVisitor(pycpsw.PathVisitor):
               for ELT in [ScalValEl, CmdEl]:
                 try:
                   el = ELT( pn )
-                  tag, clss, atts, xtra, xcol = el.getHtml()
+                  tag, clss, atts, xtra, xcol = el.getHtml( self._level )
                   # JS integer range is only 2**64 - 2**53
                   h  = el.getHash()
-                  self.idnt('<tr><td>{}</td><td><{} id={} class="leaf{}" {}>'.format(nam, tag, el.getHtmlId(), clss, atts) );
-                  for xt in xtra:
-                    self.idnt('{:<{}s}{}'.format('', 2, xt))
-                  self.idnt('{:<{}s}</{}></td><td>{}</td><td>{}</td>'.format('', 2, tag, xcol, l.getDescription()))
+                 
+                  if _useTemplates:
+                    leaf = j2env.get_template('leaf.html')
+                    print( leaf.render(
+                              name    = nam,
+                              tag     = tag,
+                              id      = el.getHtmlId(),
+                              classes = clss,
+                              atts    = atts,
+                              xtras   = xtra,
+                              xcol    = xcol,
+                              desc    = l.getDescription(),
+                              level   = self._level),
+                            file = self._fd )
+                  else:
+                    self.idnt('<tr><td>{}</td><td><{} id={} class="leaf{}" {}>'.format(nam, tag, el.getHtmlId(), clss, atts) );
+                    for xt in xtra:
+                      self.idnt('{:<{}s}{}'.format('', 2, xt))
+                    self.idnt('{:<{}s}</{}></td><td>{}</td><td>{}</td></tr>'.format('', 2, tag, xcol, l.getDescription()))
                    
 #                val = pycpsw.ScalVal_Base.create( here.findByName( nam ) )
 #                enm = val.getEnum()
@@ -385,10 +409,10 @@ class HtmlVisitor(pycpsw.PathVisitor):
   def genHtmlFile(self, rp, fd):
     self._fd   = fd
     self._dict = {}
-    print('{% extends "tree/tree.html" %}', file=fd)
-    print('{% block content %}',            file=fd)
+    print('{% extends "tree/tree.html" %}',             file=fd)
+    print('{% block content %}',                        file=fd)
     rp.explore( self )
-    print('{% endblock content %}',         file=fd)
+    print('{% endblock content %}',                     file=fd)
 
 def parseOpts(oargs):
 
