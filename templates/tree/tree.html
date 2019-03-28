@@ -29,6 +29,30 @@ function gather(l, n) {
   }
 }
 
+function findUpDir( nod ) {
+	var par = nod.parentNode;
+	while ( ! par.classList.contains("dir") ) {
+		par = par.parentNode;
+	}
+	if ( par.id == "theTreeTop" ) {
+		return null;
+	}
+	return par;
+}
+
+function assemblePath( nod ) {
+	var l  = [];
+	var up = findUpDir( nod );
+	l.push( nod.innerText );
+	while ( up != null ) {
+		nod = up.querySelector("span.caret");
+		l.push( nod.innerText );
+		up = findUpDir( up );
+	}
+    l.push("");
+	return l.reverse().join('/');
+}
+
 function bpress() {
 var l = [], i;
   gather(l, document.body);
@@ -207,7 +231,17 @@ function connectEvents() {
 			v = parseInt( this.value, 0 );			
 
 			if ( v != v ) {
-				alert( "Invalid Numerical Entry" );
+				alert( "Invalid Numerical Entry (integer)" );
+				if ( typeof( this.cachedValue ) != "undefined" ) {
+					this.value = this.cachedValue;
+				}
+				return;
+			}
+		} else if ( this.classList.contains("float") ) {
+			v = parseFloat( this.value );			
+
+			if ( v != v ) {
+				alert( "Invalid Numerical Entry (float)" );
 				if ( typeof( this.cachedValue ) != "undefined" ) {
 					this.value = this.cachedValue;
 				}
@@ -250,7 +284,7 @@ function connectEvents() {
 </script>
 </head>
 <body>
-<ul id="theTreeTop"> {% block content %}<div id="content">{% endblock %}</div> </ul> 
+<ul id="theTreeTop" class="dir"> {% block content %}<div id="content">{% endblock %}</div> </ul> 
 <button type="button" onclick=bpress()>PRESS</button>
 
 <script>

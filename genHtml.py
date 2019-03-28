@@ -23,7 +23,7 @@ def setSocketio(sio):
 
 class LeafEl(pycpsw.AsyncIO):
 
-  def __init__(self, path, vb = None):
+  def __init__(self, path, arraysOk = False, vb = None):
     super(LeafEl,self).__init__()
     self._path       = path
     self._reprUndef  = True
@@ -33,6 +33,7 @@ class LeafEl(pycpsw.AsyncIO):
     self._id         = "v_{:d}".format(self._hash)
     self._refcnt     = 0
     self._res        = list()
+    self._arraysOk   = arraysOk
     try:
       if None == vb:
         vb = pycpsw.Val_Base.create( self._path )
@@ -47,6 +48,9 @@ class LeafEl(pycpsw.AsyncIO):
 
   def getRef(self):
     return self._refcnt
+
+  def arraysOk(self):
+    return self._arraysOk
 
   def incRef(self):
     if self._refcnt == 0:
@@ -98,8 +102,8 @@ class LeafEl(pycpsw.AsyncIO):
     return self._id
 
   def create(self):
-    if self.fact_ != None:
-      self._val = self.fact_.create( self.getPath() )
+    if self._fact != None:
+      self._val = self._fact.create( self.getPath() )
 
   def destroy(self):
     self._val = None
@@ -114,15 +118,20 @@ class LeafEl(pycpsw.AsyncIO):
 
   def getValAsync(self, result):
     if not self.isWriteOnly() and self._val != None:
-      self._val.getValAsync( self )
       ## Assume list append is atomic (thread safe)!
       self._res.append( result )
+      self._val.getValAsync( self )
       return True
     return False
 
   def setVal(self, val):
     if not self.isReadOnly() and self._val != None:
       self._val.setVal( val )
+
+  def getVal(self):
+    if not self.isWriteOnly() and self._val != None:
+      return self._val.getVal()
+    return None
 
 class ScalValEl(LeafEl):
 
@@ -133,7 +142,7 @@ class ScalValEl(LeafEl):
     ScalValEl._checkId += 1
     return ScalValEl._checkId
 
-  def __init__(self, path):
+  def __init__(self, path, arraysOk = False):
     self._isSigned = False
     try:
       self._svb = pycpsw.ScalVal_Base.create( path )
@@ -142,14 +151,14 @@ class ScalValEl(LeafEl):
       self._svb = None
     self._cachedVal = None
 
-    super(ScalValEl, self).__init__(path, self._svb)
+    super(ScalValEl, self).__init__(path, arraysOk, self._svb)
 
     if self.getPath().getNelms() > 1:
       if self.getRepr() != _ReprString: 
         if None != self._svb:
           if self.reprIsUndef() and self._svb.getSizeBits() == 8:
             self.setRepr( _ReprString )
-          else:
+          elif not self.arraysOk():
             raise pycpsw.InterfaceNotImplementedError("Non-String arrays (ScalVal) not supported")
     else:
       if self.getRepr() == _ReprOther and self._svb != None:
@@ -157,27 +166,30 @@ class ScalValEl(LeafEl):
     # if this is 'other' it is not a ScalVal but could still be a DoubleVal
     if self.getRepr() in (_ReprOther, _ReprFloat):
       try:
-        self.fact_ = pycpsw.DoubleVal
-        self.fact_.create( self.getPath() )
+        self._fact = pycpsw.DoubleVal
+        self.create()
         self.setReadOnly( False )
       except pycpsw.InterfaceNotImplementedError:
-        self.fact_ = pycpsw.DoubleVal_RO
-        self.fact_.create( self.getPath() )
+        self._fact = pycpsw.DoubleVal_RO
+        self.create()
       self._isFloat = True
     else:
       try:
-        self.fact_ = pycpsw.ScalVal
-        self.fact_.create( self.getPath() )
+        self._fact = pycpsw.ScalVal
+        self.create()
         self.setReadOnly( False )
       except pycpsw.InterfaceNotImplementedError:
-        self.fact_ = pycpsw.ScalVal_RO
-        self.fact_.create( self.getPath() )
+        self._fact = pycpsw.ScalVal_RO
+        self.create()
       self._isFloat = False
+    self.destroy()
 
   def isSigned(self):
     return self._isSigned
 
   def getHtml(self):
+    if self.arraysOk():
+      raise RuntimeError("Cannot generate HTML for ScalVal array")
     tag, clss, atts, xtra, xcol = super(ScalValEl, self).getHtml()
     enm = None
     if None != self._svb:
@@ -208,6 +220,8 @@ class ScalValEl(LeafEl):
 # self.idnt('<tr><td>{}</td><td><input type="text" class="leaf" id=0x{:x} value="{}" onchange="alert(parseInt(this.value,0))"></input>
 
   def update(self, args):
+    if self.arraysOk():
+      raise RuntimeError("Cannot update for ScalVal array")
     if args[0] != None:
       if _ReprString == self.getRepr():
         print("decoding {}".format(bytearray(args[0]))) 
@@ -226,15 +240,22 @@ class ScalValEl(LeafEl):
     
 class CmdEl(LeafEl):
 
-  def __init__(self, path):
-    if path.getNelms() > 1:
+  def __init__(self, path, arraysOk = False):
+    super(CmdEl, self).__init__( path, arraysOk )
+
+    if path.getNelms() > 1 and not self.arraysOk():
       raise pycpsw.InterfaceNotImplementedError("Arrays of commands not supported")
-    self._val = pycpsw.Command.create( path )
-    super(CmdEl, self).__init__( path )
+    self._fact = pycpsw.Command
+    # verify we can create
+    self.create()
+    self.destroy()
+
     self.setReadOnly( False )
     self.setWriteOnly( True )
 
   def getHtml(self):
+    if self.arraysOk():
+      raise RuntimeError("Cannot generate HTML for CmdVal array")
     tag, clss, atts, xtra, xcol = super(CmdEl, self).getHtml()
     xtra.append('Execute')
 #FLOX    xtra.append('<td></td>')
@@ -278,7 +299,7 @@ class HtmlVisitor(pycpsw.PathVisitor):
       if None != p:
         if 1 < p.findByName( myName ).tail().getNelms():
           myName = "{}[{}]".format(myName, here.getTailFrom())
-      self.idnt('<li><span class="caret">{}</span>'.format(myName))
+      self.idnt('<li class="dir"><span class="caret">{}</span>'.format(myName))
       self.idnt('<ul class="nested" id=n_0x{:x}>'.format(self._id))
       self._id = self._id + 1
       self._level  = self._level + self._indent
@@ -418,6 +439,16 @@ def parseOpts(oargs):
               fixYaml)
 
   return rp, filename
+
+def makeEl(p):
+  print("Making el for '{}'".format(p.toString()))
+  for ELT in [ScalValEl, CmdEl]:
+    try:
+      el = ELT( p, True )
+      return el
+    except pycpsw.InterfaceNotImplementedError:
+      pass
+  raise pycpsw.InterfaceNotImplementedError("This node has no supported interface")
 
 def writeFile(rp, filename):
   if None != filename:

@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from   flask          import Flask, render_template, url_for, g, request, session
+from   flask          import Flask, render_template, url_for, g, request, session, send_from_directory, Response
 from   flask_socketio import SocketIO, join_room, leave_room
 import json
 import genHtml
@@ -7,6 +7,7 @@ import Poller
 import sys
 import threading
 import time
+import pycpsw
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = 'xokrot!'
@@ -17,6 +18,29 @@ poller   = Poller.Poller()
 @app.route('/')
 def hello_world():
   return render_template('guts.html')
+
+@app.route('/getVal')
+def get_val():
+  p = request.args.get("path")
+  d = dict()
+  if None != p:
+    try:
+      print("Making")
+      el = genHtml.makeEl( rp.findByName( p ) )
+      print("Creating")
+      el.create()
+      print("Getting")
+      d["value"] = el.getVal()
+      print("Got {}".format(d["value"]))
+      el.destroy()
+    except pycpsw.CPSWError as e:
+      d["error"] = e.what()
+  return Response( json.dumps( d  ) )
+
+@app.route('/<path:path>')
+def foo(path):
+  return send_from_directory('', path)
+
 
 @socketio.on('message')
 def handle_message(data):
@@ -92,6 +116,7 @@ def handle_disconnect():
     poller.unsubscribe( el )
 
 if __name__ == '__main__':
+  global rp
   rp, filename = genHtml.parseOpts( sys.argv )
   genHtml.setSocketio( socketio )
   global theDb
