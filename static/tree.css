@@ -20,7 +20,10 @@ ul, #theTreeTop {
   content: "\25B6";
   color: black;
   display: inline-block;
-  margin-right: 6px;
+  width:   20px;
+  margin:  2px;
+  padding: 0px;
+  border:  none;
 }
 
 /* Rotate the caret/arrow icon when clicked on (using JavaScript) */
@@ -62,4 +65,51 @@ ul, #theTreeTop {
 
 .tooltip.show {
   display: block;
+}
+
+.dropbutton {
+	border: none;
+    margin: 0px;
+}
+
+.dropbutton:hover, .dropbutton:focus {
+	background-color: #d0d0d0;
+}
+
+.dropdown-container {
+	position: relative;
+	display:  block;
+}
+
+.dropdown-content {
+	display:  none;
+	position: absolute;
+    left:       24px;
+	width:      max-content;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+}
+
+.dropdown-content button,label,a {
+	padding:          4px 4px;
+	text-decoration:  none;
+	text-decoration:  none;
+	border:           none;
+    color:            #000000;
+	width:            100%;
+	display:          block;
+	text-align:       left;
+	font-family:      sans;
+	background-color: #EEEEEE;
+}
+
+.dropdown-content input[type="file"] {
+	display:         none;
+}
+
+.dropdown-content button:hover,label:hover,a:hover {
+    background-color: #d0d0d0;
+}
+
+.dropdown-content.show {
+	display: block;
 }

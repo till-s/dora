@@ -1,0 +1,20 @@
+{%- autoescape false -%}
+{%- filter indent(width=level, first=True) -%}
+<div class="dropdown loadSaveConfig caret">
+	<button class="dropbutton">{{name}}</button>
+    <div    class="dropdown-container">
+	<div    class="dropdown-content">
+	<label>Load Configuration<input type="file" class="loadConfig"> </label>
+	<a class="saveConfig" href="{%- autoescape true -%}saveConfig?path={{path}}&json=True{%- endautoescape -%}">
+		Save Configuration
+	</a>
+	<label>
+		Save Conf. Using Template
+        <input type="file" class="saveConfigFromTemplate">
+		<a href="{%- autoescape true -%}saveConfig?path={{path}}&json=True{%- endautoescape -%}" style="display: none"></a>
+	</label>
+	</div>
+	</div>
+</div>
+{%- endfilter -%}
+{%- endautoescape -%}

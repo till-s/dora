@@ -256,8 +256,7 @@ class CmdEl(LeafEl):
       raise pycpsw.InterfaceNotImplementedError("Arrays of commands not supported")
     self._fact = pycpsw.Command
     # verify we can create
-    self.create()
-    self.destroy()
+    self.incRef()
 
     self.setReadOnly( False )
     self.setWriteOnly( True )
@@ -308,7 +307,22 @@ class HtmlVisitor(pycpsw.PathVisitor):
       if None != p:
         if 1 < p.findByName( myName ).tail().getNelms():
           myName = "{}[{}]".format(myName, here.getTailFrom())
-      self.idnt('<li class="dir"><span class="caret">{}</span>'.format(myName))
+        myPath = here.clone()
+        myPath.up()
+        myPath = myPath.findByName( myName )
+      else:
+        myPath = here
+      if _useTemplates:
+        self.idnt('<li class="dir">')
+        print( j2env.get_template( "dir.html" ).render(
+                  name  = myName,
+                  level = self._level,
+                  path  = myPath.toString()
+               ),
+               file = self._fd
+             )
+      else:
+        self.idnt('<li class="dir"><span class="caret">{}</span>'.format(myName))
       self.idnt('<ul class="nested" id=n_0x{:x}>'.format(self._id))
       self._id = self._id + 1
       self._level  = self._level + self._indent

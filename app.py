@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from   flask          import Flask, render_template, url_for, g, request, session, send_from_directory, Response
+from   flask          import Flask, render_template, url_for, g, request, session, send_from_directory, Response, send_file
 from   flask_socketio import SocketIO, join_room, leave_room
 import json
 import genHtml
@@ -8,6 +8,7 @@ import sys
 import threading
 import time
 import pycpsw
+import io
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = 'xokrot!'
@@ -36,6 +37,48 @@ def get_val():
     except pycpsw.CPSWError as e:
       d["error"] = e.what()
   return Response( json.dumps( d  ) )
+
+@app.route('/loadConfig', methods=["POST"])
+def load_config():
+  p = request.args.get("path")
+  j = request.args.get("json")
+  d = dict()
+  print("POST got request", request.get_data())
+  try:
+    dstr = request.get_data().decode("UTF-8", "strict")
+    path = rp.findByName( p )
+    s    = path.loadConfigFromYamlString( dstr )
+    d["result"] = s
+  except pycpsw.CPSWError as e:
+    s = e.what()
+    d["error"]  = s
+  if None != j and j:
+    s = json.dumps( d )
+  return Response( s )
+    
+
+@app.route('/saveConfig', methods=["GET", "POST"])
+def save_config():
+  p = request.args.get("path")
+  j = request.args.get("json")
+  d = dict()
+  if request.method == "POST":
+    print("POST got request", request.get_data())
+    print("POST got path",    p)
+  else:
+    print("GET")
+  try:
+    path      = rp.findByName( p )
+    tmpl      = request.get_data().decode("UTF-8", "strict")
+    s         = path.dumpConfigToYamlString(tmpl, None, False).decode('UTF-8', 'strict')
+    d["yaml"] = s
+  except pycpsw.CPSWError as e:
+    s          = e.what()
+    d["error"] = s
+  if None != j and j:
+    s = json.dumps( d )
+  
+  return send_file( io.BytesIO( s.encode("UTF-8") ), mimetype="application/x-yaml", as_attachment=True, attachment_filename="config.yaml")
 
 @app.route('/<path:path>')
 def foo(path):

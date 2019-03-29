@@ -43,9 +43,8 @@ function findUpDir( nod ) {
 function assemblePath( nod ) {
 	var l  = [];
 	var up = findUpDir( nod );
-	l.push( nod.innerText );
 	while ( up != null ) {
-		nod = up.querySelector("span.caret");
+		nod = up.querySelector("button.dropbutton");
 		l.push( nod.innerText );
 		up = findUpDir( up );
 	}
@@ -104,6 +103,8 @@ function changeSubscription(subs, nod) {
 }
 
 function toggleCaret() {
+	if ( event.target != this )
+		return;
 	var nn = getNested( this );
     var cmd;
 	if ( nn.classList.contains("active") ) {
@@ -113,6 +114,7 @@ function toggleCaret() {
 		localStorage.setItem("active_"+nn.id,"true");
         cmd = true;
 	}
+    dropAllDown( null );
 	nn.classList.toggle("active");
 	this.classList.toggle("caret-down");
 
@@ -171,6 +173,50 @@ console.log("restoring hex " + chkbox.id + ": " + val);
 	}
 }
 
+function dropThisDown( el ) {
+	while ( el != null ) {
+		if ( el.classList.contains("dropdown-content") ) {
+			el.classList.remove("show");
+			return;
+		}
+		el = el.parentElement;
+	}
+}
+
+function dropAllDown( butNot ) {
+	var alldrops = document.getElementsByClassName("dropdown-content");
+	var i;
+	for ( i=0; i < alldrops.length; i++ ) {
+		if ( butNot == null || alldrops[i] != butNot ) {
+			dropThisDown( alldrops[i] );
+		}
+	}
+}
+
+function postSaveConfig(pathUrl, templateYaml) {
+		$.post(pathUrl, templateYaml,
+			(data) => {
+			var d = JSON.parse( data );
+			e = d["error"];
+			if ( e ) {
+				alert("Save Configuration Failed: " + e);
+			} else {
+				if ( typeof(d["yaml"]) == "string" ) {
+					var a = document.createElement("a");
+					var blob   = new Blob( [ d["yaml"] ],
+                                           { type: "application/x-yaml" }
+                                         );
+					var url    = URL.createObjectURL( blob );
+					a.href     = url;
+					a.download = "config.yaml";
+					document.body.appendChild( a );
+					a.click();
+					a.parentElement.removeChild( a );
+					URL.revokeObjectURL( url );
+				}
+			}
+		});
+}
 
 function connectEvents() {
 
@@ -305,7 +351,70 @@ function connectEvents() {
 			tip.classList.remove("show");
 	});
 
-	console.log("Events CONNECTED");
+	$(document).on("click", ".dropbutton", function() {
+        dropd = this.parentElement.getElementsByClassName("dropdown-content");
+		// Hide all others
+		dropAllDown( dropd[0] );
+        dropd[0].classList.toggle("show");
+	});
+
+	$(document).on("click", ".saveConfig", function( event ) {
+		event.preventDefault();
+		postSaveConfig( this.href, "" );
+		dropThisDown( this );
+	});
+
+	$(document).on("click", ".loadConfig,.saveConfigFromTemplate", function() {
+		var fl = this.files;
+		this.value = null;
+		this.files = fl;
+	});
+
+	$(document).on("change", ".saveConfigFromTemplate", function() {
+        var lnk    = this.parentElement.getElementsByTagName("a");
+		var path   = lnk[0].href;
+		var reader = new FileReader();
+
+		console.log("from template; path " + path);
+
+		reader.addEventListener('loadend', function(event) {
+			if ( event.type == "loadend" ) {
+				postSaveConfig( path, this.result );
+			} else if ( even.type === "error" ) {
+				alert("Unable to load template file: " + event.error);
+			}
+		});
+
+		reader.readAsText( this.files[0] );
+		dropThisDown( this );
+	});
+
+	$(document).on("change", ".loadConfig", function() {
+			var path   = assemblePath( this.parentNode );	
+			var reader = new FileReader();
+
+			reader.addEventListener('loadend', function(event) {
+					if ( event.type === "loadend" ) {
+						$.post("loadConfig?path=" + encodeURIComponent(path) + "&json=True",
+							this.result,
+							function(data) {
+								var d = JSON.parse( data );
+								console.log("POST Received " + JSON.parse( data ));
+								e = d["error"];
+								if ( e ) {
+									alert("Load Configuration Failed: " + e);
+								} else {
+									alert( d["result"] + " Values Successfully Written" );
+								}
+							});
+					} else if ( event.type === "error" ) {
+						alert("Unable to load file: " + event.error);
+					}
+				});
+
+			reader.readAsText( this.files[0] );
+			dropThisDown( this );
+		});
 }
 
 </script>
