@@ -11,7 +11,7 @@ import pycpsw
 import io
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
-app.config["SECRET_KEY"] = 'xokrot!'
+app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
 
 socketio = SocketIO(app, async_mode='eventlet', logger=False, engineio_logger=False)
 poller   = Poller.Poller()
