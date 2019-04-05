@@ -7,6 +7,8 @@
 <title>A Tree</title>
 <script>
 
+var localStoragePrefix="";
+
 function isCollapsed( n ) {
     return ! n.classList.contains("active");
 }
@@ -108,10 +110,10 @@ function toggleCaret() {
 	var nn = getNested( this );
     var cmd;
 	if ( nn.classList.contains("active") ) {
-		localStorage.removeItem("active_"+nn.id);
+		localStorage.removeItem( localStoragePrefix + "active_" + nn.id);
         cmd = false;
 	} else {
-		localStorage.setItem("active_"+nn.id,"true");
+		localStorage.setItem( localStoragePrefix + "active_" + nn.id,"true");
         cmd = true;
 	}
     dropAllDown( null );
@@ -157,16 +159,16 @@ function flipHex( chkbox ) {
 
 function storeHex( chkbox ) {
 	if ( chkbox.checked != chkbox.classList.contains("checked") ) {
-		localStorage.setItem( "checked_" + chkbox.id, chkbox.checked );
+		localStorage.setItem( localStoragePrefix + "checked_" + chkbox.id, chkbox.checked );
 console.log("storing hex " + chkbox.id + ": " + chkbox.checked);
 	} else {
-		localStorage.removeItem( "checked_" + chkbox.id );
+		localStorage.removeItem( localStoragePrefix + "checked_" + chkbox.id );
 console.log("deleting hex " + chkbox.id);
 	}
 }
 
 function restoreHex( chkbox ) {
-	var val = localStorage.getItem( "checked_" + chkbox.id );
+	var val = localStorage.getItem( localStoragePrefix + "checked_" + chkbox.id );
 console.log("restoring hex " + chkbox.id + ": " + val);
 	if ( val != null ) {
 		chkbox.checked = (val.toLowerCase() == 'true');
@@ -194,8 +196,7 @@ function dropAllDown( butNot ) {
 }
 
 function postSaveConfig(pathUrl, templateYaml) {
-		$.post(pathUrl, templateYaml,
-			(data) => {
+		$.post(pathUrl, templateYaml, function(data) {
 			var d = JSON.parse( data );
 			e = d["error"];
 			if ( e ) {
@@ -229,7 +230,7 @@ function connectEvents() {
 	for (i = 0; i < toggler.length; i++) {
 
 		var nn = getNested(toggler[i]); 
-		if ( "true" == localStorage.getItem("active_"+nn.id) ) {
+		if ( "true" == localStorage.getItem( localStoragePrefix + "active_"+nn.id) ) {
 			nn.classList.toggle("active"); 
 			toggler[i].classList.toggle("caret-down");
 		}
