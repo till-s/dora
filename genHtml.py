@@ -72,6 +72,13 @@ class LeafEl(pycpsw.AsyncIO):
       self.destroy()
     return self._refcnt
 
+  def __enter__(self):
+    self.incRef()
+    return self
+
+  def __exit__(self, type, value, tb):
+    self.decRef()
+
   def reprIsUndef(self):
     return self._reprUndef
 
@@ -117,7 +124,7 @@ class LeafEl(pycpsw.AsyncIO):
     self._val = None
 
   def callback(self, *args):
-    ## Assume lit pop is atomic (thread safe)!
+    ## Assume list pop is atomic (thread safe)!
     r = self._res.pop(0)
     r.append( self, args )
 
@@ -136,9 +143,12 @@ class LeafEl(pycpsw.AsyncIO):
     if not self.isReadOnly() and self._val != None:
       self._val.setVal( val )
 
+  def processGotVal(self, val):
+    return val
+
   def getVal(self):
     if not self.isWriteOnly() and self._val != None:
-      return self._val.getVal()
+      return self.processGotVal( self._val.getVal() )
     return None
 
 class ScalValEl(LeafEl):
@@ -150,7 +160,7 @@ class ScalValEl(LeafEl):
     ScalValEl._checkId += 1
     return ScalValEl._checkId
 
-  def __init__(self, path, arraysOk = False):
+  def __init__(self, path, arraysOk = False, array2Int = None):
     self._isSigned = False
     try:
       self._svb = pycpsw.ScalVal_Base.create( path )
@@ -164,13 +174,16 @@ class ScalValEl(LeafEl):
     if self.getPath().getNelms() > 1:
       if self.getRepr() != _ReprString: 
         if None != self._svb:
-          if self.reprIsUndef() and self._svb.getSizeBits() == 8:
+          if self.reprIsUndef() and self._svb.getSizeBits() == 8 and None == array2Int:
             self.setRepr( _ReprString )
           elif not self.arraysOk():
             raise pycpsw.InterfaceNotImplementedError("Non-String arrays (ScalVal) not supported")
+    if self.getRepr() == _ReprOther and self._svb != None:
+      self.setRepr( _ReprInt )
+    if 1 >= self.getPath().getNelms() or self.getRepr() == _ReprString:
+      self.array2Int_ = None
     else:
-      if self.getRepr() == _ReprOther and self._svb != None:
-        self.setRepr( _ReprInt )
+      self.array2Int_ = array2Int
     # if this is 'other' it is not a ScalVal but could still be a DoubleVal
     if self.getRepr() in (_ReprOther, _ReprFloat):
       try:
@@ -228,20 +241,35 @@ class ScalValEl(LeafEl):
         xcol = '<input type="checkbox" id="c_{:x}" class="hexFmt {}" {}><div class="tooltip"><p>Toggle Hex Display Format.</p><p>(Input format always accepts \'0x\' prefix.)</p></div>'.format( self.checkId(), checked, checked )
     return tag, clss, atts, xtra, xcol
 
+  def processGotVal(self, ival):
+    if _ReprString == self.getRepr():
+      print("decoding {}".format(bytearray(ival))) 
+      barr = bytearray(ival) 
+      try:
+        end = barr.index(0)
+      except ValueError:
+        end = len(barr)
+      oval = barr[0:end].decode('ascii')
+    elif None != self.array2Int_:
+      base = 2**self._val.getSizeBits()
+      if ( self.array2Int_ == "LE" ):
+        iarr = ival.reverse()
+      else:
+        iarr = ival
+      oval = 0
+      for i in iarr:
+        oval = oval * base + i
+      if self._val.isSigned() and oval >= 2**(self._val.getSizeBits() * len(iarr) - 1):
+        oval = oval - 2**(self._val.getSizeBits() * len(iarr) )
+    else:
+      oval = ival
+    return oval
+
   def update(self, args):
     if self.arraysOk():
       raise RuntimeError("Cannot update for ScalVal array")
     if args[0] != None:
-      if _ReprString == self.getRepr():
-        print("decoding {}".format(bytearray(args[0]))) 
-        barr = bytearray(args[0]) 
-        try:
-          end = barr.index(0)
-        except ValueError:
-          end = len(barr)
-        val = barr[0:end].decode('ascii')
-      else:
-        val = args[0]
+      val = self.processGotVal( args[0] )
       self._cachedVal = val
       d = [ ( self.getHtmlId(), val ) ]
       _socketio.emit('update', json.dumps( d ), room=self.getHtmlId())
@@ -274,11 +302,22 @@ class CmdEl(LeafEl):
     self._val.execute()
 
 class Fixup(pycpsw.YamlFixup):
-  def __init__(self):
+
+  def __init__(self, useNullDev = True):
     super(Fixup, self).__init__()
+    self.useNullDev_ = useNullDev
+    self.ip_         = None
 
   def __call__(self, rootNode, topNode):
-    rootNode["class"].set("NullDev")
+    if self.useNullDev_:
+      rootNode["class"].set("NullDev")
+
+    n = pycpsw.YamlFixup.findByName(rootNode, "ipAddr")
+    if None != n and n.IsDefined():
+      self.ip_ = n.getAs()
+
+  def getInfo(self):
+    return { "ipAddr": self.ip_ }
 
 class HtmlVisitor(pycpsw.PathVisitor):
 
@@ -423,7 +462,7 @@ class HtmlVisitor(pycpsw.PathVisitor):
   def genHtmlFile(self, rp, fd):
     self._fd   = fd
     self._dict = {}
-    print('{% extends "tree/tree.html" %}',             file=fd)
+    print('{% extends "tree.html" %}',                  file=fd)
     print('{% block content %}',                        file=fd)
     rp.explore( self )
     print('{% endblock content %}',                     file=fd)
@@ -437,7 +476,7 @@ def parseOpts(oargs):
                       ])
 
   filename = None
-  fixYaml  = Fixup()
+  nullDev  = True
 
   for opt in opts:
     if opt[0] in ('-h', '--help'):
@@ -454,7 +493,9 @@ def parseOpts(oargs):
     elif opt[0] in ('-f'):
       filename = opt[1]
     elif opt[0] in ('-F'):
-      fixYaml  = None
+      nullDev  = False
+
+  fixYaml = Fixup( nullDev )
 
   if len(args) > 0:
     yamlFile = args[0]
@@ -476,7 +517,7 @@ def parseOpts(oargs):
               yamlIncDir,
               fixYaml)
 
-  return rp, filename
+  return rp, filename, fixYaml.getInfo()
 
 def makeEl(p):
   print("Making el for '{}'".format(p.toString()))

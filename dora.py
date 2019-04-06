@@ -9,6 +9,8 @@ import threading
 import time
 import pycpsw
 import io
+from   infoCollector  import InfoCollector, LongIntCollector
+import pathGrep
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
@@ -16,26 +18,44 @@ app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
 socketio = SocketIO(app, async_mode='eventlet', logger=False, engineio_logger=False)
 poller   = Poller.Poller()
 
+deviceTopName = "Test Top"
+
+@app.route('/')
+@app.route('/index.html')
+def index():
+  items = []
+  for coll in [
+    InfoCollector   (pg, "Firmware Build:", ".*AxiVersion/BuildStamp"),
+    LongIntCollector(pg, "Git Hash:      ", ".*AxiVersion/GitHash", "{:x}")
+    ]:
+    items.append( coll.collectInfo() )
+  try:
+    items.append({"key": "IP Address", "val": gblInfo["ipAddr"]})
+  except KeyError:
+    pass
+  return render_template('info.html',
+    deviceTopName = deviceTopName,
+    items         = items
+    )
+
 @app.route('/tree')
 def hello_world():
-  return render_template('guts.html')
+  return render_template('guts.html', deviceTopName = deviceTopName)
 
 @app.route('/getVal')
 def get_val():
   p = request.args.get("path")
   d = dict()
   if None != p:
+    paths = pg( p )
     try:
-      print("Making")
-      el = genHtml.makeEl( rp.findByName( p ) )
-      print("Creating")
-      el.create()
-      print("Getting")
-      d["value"] = el.getVal()
-      print("Got {}".format(d["value"]))
-      el.destroy()
+      d1 = list() 
+      for path in paths:
+        with genHtml.makeEl( path ) as el:
+          d1.append({"name" : path.toString(), "value": el.getVal()} )
+      d["result"] = d1
     except pycpsw.CPSWError as e:
-      d["error"] = e.what()
+      d["error"]  = e.what()
   return Response( json.dumps( d  ) )
 
 @app.route('/loadConfig', methods=["POST"])
@@ -70,7 +90,7 @@ def save_config():
   try:
     path      = rp.findByName( p )
     tmpl      = request.get_data().decode("UTF-8", "strict")
-    s         = path.dumpConfigToYamlString(tmpl, None, False).decode('UTF-8', 'strict')
+    s         = path.dumpConfigToYamlString(tmpl, None, False)
     d["yaml"] = s
   except pycpsw.CPSWError as e:
     s          = e.what()
@@ -160,7 +180,10 @@ def handle_disconnect():
 
 if __name__ == '__main__':
   global rp
-  rp, filename = genHtml.parseOpts( sys.argv )
+  global pg
+  global gblInfo
+  rp, filename, gblInfo = genHtml.parseOpts( sys.argv )
+  pg                    = pathGrep.PathGrep( rp, patt = None, asPath = True )
   genHtml.setSocketio( socketio )
   global theDb
   theDb = genHtml.writeFile( rp, "templates/guts.html" )
