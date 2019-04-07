@@ -2,11 +2,12 @@
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<link href="general.css" type="text/css" rel="stylesheet">
 <title>General Information</title>
 </head>
 <body>
-<h1>General Information</h1>
-<h2>{{deviceTopName}}</h2>
+<h1>{{deviceTopName}}</h1>
+<h2>General Information</h2>
 <table>
 {%- for it in items -%}
 <tr><td>{{it.key}}</td><td>{{it.val}}</td></tr>
@@ -15,4 +16,3 @@
 <a href=tree>Tree View</a>
 </body>
 </html>
-

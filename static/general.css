@@ -1,0 +1,10 @@
+* {
+  font-family:      Helvetica, sans-serif;
+  font-size:        medium;
+  background-color: #e0e0e0;
+  padding:          unset;
+}
+
+h1 {
+  font-size: larger;
+}

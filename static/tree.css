@@ -1,6 +1,7 @@
 /* Remove default bullets */
-ul, #theTreeTop {
+ul {
   list-style-type: none;
+  padding-left: 20px;
 }
 
 /* Remove margins and padding from the parent ul */
@@ -18,9 +19,9 @@ ul, #theTreeTop {
 /* Create the caret/arrow with a unicode, and style it */
 .caret::before {
   content: "\25B6";
-  color: black;
+  color: blue;
   display: inline-block;
-  width:   20px;
+  width:   10px;
   margin:  2px;
   padding: 0px;
   border:  none;
@@ -50,17 +51,19 @@ ul, #theTreeTop {
 }
 
 .tooltip {
-  position:   absolute;
-  padding:    2px;
-  display:    none;
-  box-shadow: 0px 4px 8px 0px rgba(0,0,0,0.2);
-  background-color: #dddddd;
+  position:         absolute;
+  padding:          2px;
+  display:          none;
+  box-shadow:       0px 4px 8px 0px rgba(0,0,0,0.2);
+  background-color: #c0c0c0;
+  z-index:          4;
 }
 
 .tooltip p {
   padding:    0px;
   border:     none;
   margin:     0px;
+  background-color: #c0c0c0;
 }
 
 .tooltip.show {
@@ -70,6 +73,8 @@ ul, #theTreeTop {
 .dropbutton {
 	border: none;
     margin: 0px;
+    padding-left:  8px;
+    padding-right: 0px;
 }
 
 .dropbutton:hover, .dropbutton:focus {
@@ -87,9 +92,10 @@ ul, #theTreeTop {
     left:       24px;
 	width:      max-content;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index:    2;
 }
 
-.dropdown-content button,label,a {
+.dropdown-content button, .dropdown-content label, .dropdown-content a {
 	padding:          4px 4px;
 	text-decoration:  none;
 	text-decoration:  none;
@@ -98,8 +104,16 @@ ul, #theTreeTop {
 	width:            100%;
 	display:          block;
 	text-align:       left;
-	font-family:      sans;
 	background-color: #EEEEEE;
+}
+
+#theTreeTop li {
+  padding: 0px;
+  margin:  0px;
+}
+
+.leafTable td {
+  padding-left: 20px;
 }
 
 .dropdown-content input[type="file"] {
