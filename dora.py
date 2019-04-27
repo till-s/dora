@@ -58,6 +58,18 @@ def get_val():
       d["error"]  = e.what()
   return Response( json.dumps( d  ) )
 
+@app.route("/findByName")
+def find_by_name():
+  p = request.args.get("path")
+  d = dict()
+  if None != p:
+    paths = pg( p )
+    try:
+      d["result"] = [ path.toString() for path in paths ]
+    except pycpsw.CPSWError as e:
+      d["error"]  = e.what()
+  return Response( json.dumps( d  ) )
+
 @app.route('/loadConfig', methods=["POST"])
 def load_config():
   p = request.args.get("path")
