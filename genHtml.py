@@ -12,6 +12,7 @@ from   cityhash import CityHash32
 import flask_socketio
 import eventlet.semaphore
 import jinja2
+import html
 
 _ReprOther  = 0
 _ReprInt    = 1
@@ -42,6 +43,7 @@ class LeafEl(pycpsw.AsyncIO):
     self._refcnt     = 0
     self._res        = list()
     self._arraysOk   = arraysOk
+    self._forceNum   = (None != vb and None != vb.getEnum())
     try:
       if None == vb:
         vb = pycpsw.Val_Base.create( self._path )
@@ -135,7 +137,7 @@ class LeafEl(pycpsw.AsyncIO):
     if not self.isWriteOnly() and self._val != None:
       ## Assume list append is atomic (thread safe)!
       self._res.append( result )
-      self._val.getValAsync( self )
+      self._val.getValAsync( self, forceNumeric = self._forceNum )
       return True
     return False
 
@@ -148,7 +150,7 @@ class LeafEl(pycpsw.AsyncIO):
 
   def getVal(self):
     if not self.isWriteOnly() and self._val != None:
-      return self.processGotVal( self._val.getVal() )
+      return self.processGotVal( self._val.getVal( forceNumeric = self._forceNum ) )
     return None
 
 class ScalValEl(LeafEl):
@@ -220,7 +222,8 @@ class ScalValEl(LeafEl):
         if self.isReadOnly():
           atts += ' disabled=true'
         for e in enm.getItems():
-            xtra.append('{:<{}s}<option>{}</option>'.format('', 2, e[0]))
+            xtra.append('{:<{}s}<option value={}>{}</option>'.format('', 2, e[1], html.escape(e[0])))
+        clss += " int"
         return tag, clss, atts, xtra, xcol
     tag  = 'input'
     atts += ' type="text" value="???"'
@@ -361,7 +364,7 @@ class HtmlVisitor(pycpsw.PathVisitor):
                file = self._fd
              )
       else:
-        self.idnt('<li class="dir"><span class="caret">{}</span>'.format(myName))
+        self.idnt('<li class="dir"><span class="caret">{}</span>'.format(html.escape(myName)))
       self.idnt('<ul class="nested" id=n_0x{:x}>'.format(self._id))
       self._id = self._id + 1
       self._level  = self._level + self._indent
@@ -408,10 +411,10 @@ class HtmlVisitor(pycpsw.PathVisitor):
                               level   = self._level),
                             file = self._fd )
                   else:
-                    self.idnt('<tr><td>{}</td><td><{} id={} class="leaf{}" {}>'.format(nam, tag, el.getHtmlId(), clss, atts) );
+                    self.idnt('<tr><td>{}</td><td><{} id={} class="leaf{}" {}>'.format(html.escape(nam), tag, el.getHtmlId(), clss, atts) );
                     for xt in xtra:
                       self.idnt('{:<{}s}{}'.format('', 2, xt))
-                    self.idnt('{:<{}s}</{}></td><td>{}</td><td>{}</td></tr>'.format('', 2, tag, xcol, l.getDescription()))
+                    self.idnt('{:<{}s}</{}></td><td>{}</td><td>{}</td></tr>'.format('', 2, tag, html.escape(xcol), html.escape(l.getDescription())))
                    
 #                val = pycpsw.ScalVal_Base.create( here.findByName( nam ) )
 #                enm = val.getEnum()
@@ -434,14 +437,14 @@ class HtmlVisitor(pycpsw.PathVisitor):
                   pass
               else:
                 self.idnt('<tr><td>{}</td><td id="leaf" class="notsupported">(not supported)</td><td>{}</td></tr>'.format(
-                  nam,
+                  html.escape(nam),
                   l.getDescription()
                 ))
                 print("WARNING: unable to create leaf node for {}/{}".format(here, nam), file=sys.stderr)
           except RuntimeError as e:
-            self.idnt('<tr><td>{}</td><td id="leaf" class="notsupported">(not supported)</td><td>{}</td></tr>'.format(
-              l.getName(),
-              l.getDescription()
+            self.idnt('<tr><td>{}</td><td id="leaf" class="notsupported">(not supported)</td><td></td><td>{}</td></tr>'.format(
+              html.escape(l.getName()),
+              html.escape(l.getDescription())
             ))
             print("WARNING: unable to create leaf node for {}/{}".format(here, l.getName()), file=sys.stderr)
             print(e, file=sys.stderr)
