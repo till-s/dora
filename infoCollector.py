@@ -25,8 +25,8 @@ class InfoCollector(object):
     return {"key" : self.title_, "val" : self.fmt_.format( val ) }
 
 class LongIntCollector(InfoCollector):
-  def __init__(self, grepper, title, patt, endian="LE"):
-    super(LongIntCollector, self).__init__( grepper, title, patt )
+  def __init__(self, grepper, title, patt, fmt="{}", endian="LE"):
+    super(LongIntCollector, self).__init__( grepper, title, patt, fmt )
     self.endian_ = endian
 
   def makeEl(self):
