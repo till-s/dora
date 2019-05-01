@@ -26,7 +26,7 @@ def index():
   items = []
   for coll in [
     InfoCollector   (pg, "Firmware Build:", ".*AxiVersion/BuildStamp"),
-    LongIntCollector(pg, "Git Hash:      ", ".*AxiVersion/GitHash", "{:x}")
+    LongIntCollector(pg, "Git Hash:      ", ".*AxiVersion/GitHash", "{:x}", "LE")
     ]:
     items.append( coll.collectInfo() )
   try:
