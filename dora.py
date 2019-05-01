@@ -18,6 +18,8 @@ app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
 socketio = SocketIO(app, async_mode='eventlet', logger=False, engineio_logger=False)
 poller   = Poller.Poller()
 
+pollInterval = 2 #seconds
+
 deviceTopName = "Test Top"
 
 @app.route('/')
@@ -173,10 +175,10 @@ def handle_setVal(data):
       print("Warning: key {} not found".format(anid))
     
 
-def ticker():
+def ticker( period ):
   while True:
     poller.poll()
-    socketio.sleep(5)
+    socketio.sleep( period )
 
 @socketio.on('connect')
 def handle_connect():
@@ -201,6 +203,6 @@ if __name__ == '__main__':
   theDb = genHtml.writeFile( rp, "templates/guts.html" )
   for el in theDb:
     print(el)
-  socketio.start_background_task( ticker )
+  socketio.start_background_task( ticker, pollInterval )
   socketio.run(app, host='0.0.0.0', port=8000)
   print("Leaving App")
