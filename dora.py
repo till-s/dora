@@ -32,7 +32,7 @@ def index():
     ]:
     items.append( coll.collectInfo() )
   try:
-    items.append({"key": "IP Address", "val": gblInfo["ipAddr"]})
+    items.append({"key": "IP Address:", "val": gblInfo["ipAddr"], "esc": True})
   except KeyError:
     pass
   return render_template('info.html',
