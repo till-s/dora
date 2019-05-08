@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from   flask          import Flask, render_template, url_for, g, request, session, send_from_directory, Response, send_file
+from   flask          import Flask, render_template, url_for, g, request, session, send_from_directory, Response, send_file, abort
 from   flask_socketio import SocketIO, join_room, leave_room
 import json
 import genHtml
@@ -24,6 +24,14 @@ pollInterval = 2 #seconds
 
 deviceTopName = "Test Top"
 
+def getDebugProbesPath():
+  rp = os.path.realpath("/lib/firmware/zynq-firmware.bin")
+  ltxp = re.sub("[.]bin([.]swab)?", ".ltx", rp)
+  if os.path.isfile( ltxp ):
+    return ltxp
+  else:
+    return None
+
 @app.route('/')
 @app.route('/index.html')
 def index():
@@ -37,10 +45,21 @@ def index():
     items.append({"key": "IP Address:", "val": gblInfo["ipAddr"], "esc": True})
   except KeyError:
     pass
+  if None != getDebugProbesPath():
+    items.append({"key": "Debug Probes File:", "val": "<a href=/debugProbes>download</a>", "esc": False})
   return render_template('info.html',
     deviceTopName = deviceTopName,
     items         = items
     )
+
+@app.route('/debugProbes')
+def getDebugProbes():
+  path = getDebugProbesPath()
+  if None != path:
+    (d,f) = os.path.split( path )
+    return send_from_directory(d, f, as_attachment=True, cache_timeout=10, mimetype='application/octet-stream')
+  abort(404)
+
 
 @app.route('/tree')
 def hello_world():
