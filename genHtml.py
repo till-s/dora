@@ -13,6 +13,7 @@ import flask_socketio
 import eventlet.semaphore
 import jinja2
 import html
+import subprocess
 
 _ReprOther  = 0
 _ReprInt    = 1
@@ -528,6 +529,12 @@ class HtmlVisitor(pycpsw.PathVisitor):
     if None != self._fd:
       print('{% endblock content %}',                     file=fd)
 
+def computeCksum(yamlFile):
+  # compute checksum
+  res   = subprocess.run("cpsw_ypp -Y {} | cksum".format(yamlFile), shell=True, stdout=subprocess.PIPE, check=True)
+  cksum = int( res.stdout.split()[0] )
+  return cksum
+
 def parseOpts(oargs):
 
   ( opts, args ) = getopt.getopt(
@@ -541,7 +548,7 @@ def parseOpts(oargs):
 
   for opt in opts:
     if opt[0] in ('-h', '--help'):
-      print("Usage: {}  [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
+      print("Usage: {}  [-f html_file_stem] [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
       print()
       print("          yaml_file            : top-level YAML file to load (required)")
       print("          root_node            : YAML root node (default: \"root\")")
@@ -577,6 +584,10 @@ def parseOpts(oargs):
               yamlRoot,
               yamlIncDir,
               fixYaml)
+
+  if None != filename:
+    cksum = computeCksum( yamlFile )
+    filename = "{}-{:x}.html".format( filename, cksum )
 
   return rp, filename, fixYaml.getInfo(), yamlFile
 

@@ -63,7 +63,7 @@ def getDebugProbes():
 
 @app.route('/tree')
 def hello_world():
-  return render_template('guts.html', deviceTopName = deviceTopName)
+  return render_template(treeTemplate, deviceTopName = deviceTopName)
 
 @app.route('/getVal')
 def get_val():
@@ -217,11 +217,18 @@ if __name__ == '__main__':
   global rp
   global pg
   global gblInfo
+  global treeTemplate
+  global theDb
   rp, filename, gblInfo, yamlFile = genHtml.parseOpts( sys.argv )
   pg                    = pathGrep.PathGrep( rp, patt = None, asPath = True )
   genHtml.setSocketio( socketio )
-  global theDb
-  theDb = genHtml.writeFile( rp, "templates/guts.html" )
+  cksum = genHtml.computeCksum( yamlFile )
+  treeTemplate = "guts-{:x}.html".format( cksum )
+  if os.path.isfile("templates/"+treeTemplate):
+    theDb = genHtml.writeNoFile( rp )
+  else:
+    print("No template for this YAML file found; must regenerate")
+    theDb = genHtml.writeFile( rp, "templates/"+treeTemplate )
   for el in theDb:
     print(el)
   socketio.start_background_task( ticker, pollInterval )
