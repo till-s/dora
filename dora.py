@@ -9,6 +9,8 @@ import threading
 import time
 import pycpsw
 import io
+import os
+import re
 from   infoCollector  import InfoCollector, LongIntCollector
 import pathGrep
 
@@ -196,7 +198,7 @@ if __name__ == '__main__':
   global rp
   global pg
   global gblInfo
-  rp, filename, gblInfo = genHtml.parseOpts( sys.argv )
+  rp, filename, gblInfo, yamlFile = genHtml.parseOpts( sys.argv )
   pg                    = pathGrep.PathGrep( rp, patt = None, asPath = True )
   genHtml.setSocketio( socketio )
   global theDb

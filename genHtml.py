@@ -550,7 +550,7 @@ def parseOpts(oargs):
       print("          -F                   : no YAML Fixup which removes all communication")
       print()
       print("    --help/-h                  : This message")
-      return
+      return None, None, None, None
     elif opt[0] in ('-f'):
       filename = opt[1]
     elif opt[0] in ('-F'):
@@ -578,7 +578,7 @@ def parseOpts(oargs):
               yamlIncDir,
               fixYaml)
 
-  return rp, filename, fixYaml.getInfo()
+  return rp, filename, fixYaml.getInfo(), yamlFile
 
 def makeEl(p):
   print("Making el for '{}'".format(p.toString()))
@@ -609,5 +609,5 @@ def writeNoFile(rp):
   return vis.getDict()
 
 if __name__ == '__main__':
-  rp, filename = parseOpts( sys.argv )
+  rp, filename, info, yamlFile = parseOpts( sys.argv )
   writeFile(rp, filename)
