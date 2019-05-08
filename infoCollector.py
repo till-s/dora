@@ -22,7 +22,7 @@ class InfoCollector(object):
     with self.makeEl() as el:
       val = el.getVal()
     print("GOT VAL: ", val)
-    return {"key" : self.title_, "val" : self.fmt_.format( val ) }
+    return {"key" : self.title_, "val" : self.fmt_.format( val ), "esc" : True }
 
 class LongIntCollector(InfoCollector):
   def __init__(self, grepper, title, patt, fmt="{}", endian="LE"):
