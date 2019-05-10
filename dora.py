@@ -13,6 +13,7 @@ import os
 import re
 from   infoCollector  import InfoCollector, LongIntCollector
 import pathGrep
+import DoraApp
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
@@ -24,13 +25,7 @@ pollInterval = 2 #seconds
 
 deviceTopName = "Test Top"
 
-def getDebugProbesPath():
-  rp = os.path.realpath("/lib/firmware/zynq-firmware.bin")
-  ltxp = re.sub("[.]bin([.]swab)?", ".ltx", rp)
-  if os.path.isfile( ltxp ):
-    return ltxp
-  else:
-    return None
+doraApp = DoraApp.DoraApp()
 
 @app.route('/')
 @app.route('/index.html')
@@ -45,7 +40,7 @@ def index():
     items.append({"key": "IP Address:", "val": gblInfo["ipAddr"], "esc": True})
   except KeyError:
     pass
-  if None != getDebugProbesPath():
+  if None != doraApp.getDebugProbesPath():
     items.append({"key": "Debug Probes File:", "val": "<a href=/debugProbes>download</a>", "esc": False})
   return render_template('info.html',
     deviceTopName = deviceTopName,
@@ -54,7 +49,7 @@ def index():
 
 @app.route('/debugProbes')
 def getDebugProbes():
-  path = getDebugProbesPath()
+  path = doraApp.getDebugProbesPath()
   if None != path:
     (d,f) = os.path.split( path )
     return send_from_directory(d, f, as_attachment=True, cache_timeout=10, mimetype='application/octet-stream')
@@ -224,7 +219,11 @@ if __name__ == '__main__':
 
   optDict      = genHtml.parseOpts( sys.argv )
 
-  fixYaml      = genHtml.Fixup( optDict )
+  fixYaml      = doraApp.getYamlFixup( optDict, sys.argv )
+
+  if None == fixYaml:
+    # use default
+    fixYaml    = genHtml.Fixup( optDict )
 
   yamlFile     = optDict["YamlFileName"]
   rp           = pycpsw.Path.loadYamlFile(
@@ -232,6 +231,8 @@ if __name__ == '__main__':
                    optDict["YamlRootName"  ],
                    optDict["YamlIncDirName"],
                    fixYaml)
+
+  doraApp.initApp( rp )
 
   gblInfo      = fixYaml.getInfo()
 
