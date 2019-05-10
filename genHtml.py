@@ -306,40 +306,160 @@ class CmdEl(LeafEl):
 
 class Fixup(pycpsw.YamlFixup):
 
-  def __init__(self, useNullDev = True):
+  def __init__(self, argDict):
     super(Fixup, self).__init__()
-    self.useNullDev_ = useNullDev
+    self.useNullDev_ = argDict["UseNullDev"]
     self.ip_         = "<NONE>"
+    self.setIp_      = argDict["IpAddress" ]
+    self.blacklist_  = []
 
   def __call__(self, rootNode, topNode):
+    n = topNode["GuiBlacklist"]
+    if n.IsDefined() and not n.IsNull():
+      for it in n:
+        self.blacklist_.append( it.getAs() )
+
     if self.useNullDev_:
       rootNode["class"].set("NullDev")
 
     n = pycpsw.YamlFixup.findByName(rootNode, "ipAddr")
     if n.IsDefined() and not n.IsNull():
+      if None != self.setIp_:
+        n["ipAddr"].set(self.setIp_)
       self.ip_ = n.getAs()
 
   def getInfo(self):
     return { "ipAddr": self.ip_ }
+
+  def getBlacklist(self):
+    if 0 == len( self.blacklist_ ):
+      return None
+    print("Returnging blaclist", self.blacklist_)
+    return self.blacklist_
 
 class HtmlVisitor(pycpsw.PathVisitor):
 
   _indent    =  2
   _maxExpand = 10
 
-  def __init__(self):
+  def __init__(self, blacklist = None):
     super(HtmlVisitor, self).__init__()
     self._level  = 0
     self._id     = 0
     self._dict   = dict()
     self._fd     = sys.stdout
+    self._skip   = []
+    if None != blacklist:
+      self._blackl = [ re.compile( p ) for p in blacklist ]
+    else:
+      self._blackl = None
 
   def idnt(self, formatted):
     print("{:<{}s}{}".format('',self._level, formatted), file=self._fd)
 
+  def isBlackListed(self, path):
+    # See if this path is blacklisted
+    if None == self._blackl:
+      return False
+    for p in self._blackl:
+      if None != p.match( path.toString() ):
+        print("BLACKLIST MATCH", path)
+        return True
+    return False
+
+  def addLeaves(self, hub, here):
+    leaves = []
+    for child in hub.getChildren():
+      if None == child.isHub():
+        leaves.append( child )
+    if len(leaves) > 0:
+      if None != self._fd:
+        self.idnt('<li><table class="leafTable">')
+      for l in leaves:
+        self.addLeaf(l, here)
+      if None != self._fd:
+        self.idnt('</table></li>')
+
+  def addLeaf(self, l, here):
+    try:
+      nelms = l.getNelms()
+      if nelms > 1:
+         try:
+           vb = pycpsw.Val_Base.create( here.findByName( l.getName() ) )
+           if vb.getEncoding() == "ASCII":
+             # don't expand strings
+             nelms = 1
+         except pycpsw.CPSWError:
+           pass
+      if nelms > self._maxExpand:
+        raise RuntimeError("Leaves with more than {} elements not supported".format( self._maxExpand ))
+      if nelms > 1:
+        idxRange = [ '[{}]'.format(i) for i in range(l.getNelms())]
+      else:
+        idxRange = [ '' ]
+      for idx in idxRange:
+        nam = l.getName() + idx
+        pn  = here.findByName( nam )
+        if self.isBlackListed( pn ):
+          break
+        for ELT in [ScalValEl, CmdEl]:
+          try:
+            el = ELT( pn )
+            tag, clss, atts, xtra, xcol = el.getHtml( self._level )
+            # JS integer range is only 2**64 - 2**53
+            h  = el.getHash()
+
+            if None != self._fd:
+              if _useTemplates:
+                leaf = j2env.get_template('leaf.html')
+                print( leaf.render(
+                          name    = nam,
+                          tag     = tag,
+                          id      = el.getHtmlId(),
+                          classes = clss,
+                          atts    = atts,
+                          xtras   = xtra,
+                          xcol    = xcol,
+                          desc    = l.getDescription(),
+                          level   = self._level),
+                        file = self._fd )
+              else:
+                self.idnt('<tr><td>{}</td><td><{} id={} class="leaf{}" {}>'.format(html.escape(nam), tag, el.getHtmlId(), clss, atts) );
+                for xt in xtra:
+                  self.idnt('{:<{}s}{}'.format('', 2, xt))
+                self.idnt('{:<{}s}</{}></td><td>{}</td><td>{}</td></tr>'.format('', 2, tag, html.escape(xcol), html.escape(l.getDescription())))
+
+            self._id = self._id+1
+            self._dict[h] = el
+            break
+          except pycpsw.InterfaceNotImplementedError:
+            pass
+          except pycpsw.MultipleInstantiationError:
+            print("INFO: unable to create leaf node for {}/{} (multiple instantiations not possible)".format(here, l.getName()), file=sys.stderr)
+            break
+        else:
+          if None != self._fd:
+            self.idnt('<tr><td>{}</td><td id="leaf" class="notsupported">(not supported)</td><td>{}</td></tr>'.format(
+              html.escape(nam),
+              l.getDescription()
+            ))
+          print("WARNING: unable to create leaf node for {}/{}".format(here, nam), file=sys.stderr)
+    except RuntimeError as e:
+      if None != self._fd:
+        self.idnt('<tr><td>{}</td><td id="leaf" class="notsupported">(not supported)</td><td></td><td>{}</td></tr>'.format(
+          html.escape(l.getName()),
+          html.escape(l.getDescription())
+        ))
+      print("WARNING: unable to create leaf node for {}/{}".format(here, l.getName()), file=sys.stderr)
+      print(e, file=sys.stderr)
+
   def visitPre(self, here):
     h = here.tail().isHub()
     if None != h:
+      skip = self.isBlackListed( here )
+      self._skip.append( skip )
+      if skip:
+        return False
       if None != self._fd:
         p = here.parent()
         myName = h.getName()
@@ -365,88 +485,13 @@ class HtmlVisitor(pycpsw.PathVisitor):
         self.idnt('<ul class="nested" id=n_0x{:x}>'.format(self._id))
       self._id = self._id + 1
       self._level  = self._level + self._indent
-      leaves = []
-      for child in h.getChildren():
-        if None == child.isHub():
-          leaves.append( child )
-      if len(leaves) > 0:
-        if None != self._fd:
-          self.idnt('<li><table class="leafTable">')
-        for l in leaves:
-          try:
-            nelms = l.getNelms()
-            if nelms > 1:
-               try:
-                 vb = pycpsw.Val_Base.create( here.findByName( l.getName() ) )
-                 if vb.getEncoding() == "ASCII":
-                   # don't expand strings
-                   nelms = 1
-               except pycpsw.CPSWError:
-                 pass
-            if nelms > self._maxExpand:
-              raise RuntimeError("Leaves with more than {} elements not supported".format( self._maxExpand ))
-            if nelms > 1:
-              idxRange = [ '[{}]'.format(i) for i in range(l.getNelms())]
-            else:
-              idxRange = [ '' ]
-            for idx in idxRange:
-              nam = l.getName() + idx
-              pn  = here.findByName( nam )
-              for ELT in [ScalValEl, CmdEl]:
-                try:
-                  el = ELT( pn )
-                  tag, clss, atts, xtra, xcol = el.getHtml( self._level )
-                  # JS integer range is only 2**64 - 2**53
-                  h  = el.getHash()
-
-                  if None != self._fd:
-                    if _useTemplates:
-                      leaf = j2env.get_template('leaf.html')
-                      print( leaf.render(
-                                name    = nam,
-                                tag     = tag,
-                                id      = el.getHtmlId(),
-                                classes = clss,
-                                atts    = atts,
-                                xtras   = xtra,
-                                xcol    = xcol,
-                                desc    = l.getDescription(),
-                                level   = self._level),
-                              file = self._fd )
-                    else:
-                      self.idnt('<tr><td>{}</td><td><{} id={} class="leaf{}" {}>'.format(html.escape(nam), tag, el.getHtmlId(), clss, atts) );
-                      for xt in xtra:
-                        self.idnt('{:<{}s}{}'.format('', 2, xt))
-                      self.idnt('{:<{}s}</{}></td><td>{}</td><td>{}</td></tr>'.format('', 2, tag, html.escape(xcol), html.escape(l.getDescription())))
-
-                  self._id = self._id+1
-                  self._dict[h] = el
-                  break
-                except pycpsw.InterfaceNotImplementedError:
-                  pass
-              else:
-                if None != self._fd:
-                  self.idnt('<tr><td>{}</td><td id="leaf" class="notsupported">(not supported)</td><td>{}</td></tr>'.format(
-                    html.escape(nam),
-                    l.getDescription()
-                  ))
-                print("WARNING: unable to create leaf node for {}/{}".format(here, nam), file=sys.stderr)
-          except RuntimeError as e:
-            if None != self._fd:
-              self.idnt('<tr><td>{}</td><td id="leaf" class="notsupported">(not supported)</td><td></td><td>{}</td></tr>'.format(
-                html.escape(l.getName()),
-                html.escape(l.getDescription())
-              ))
-            print("WARNING: unable to create leaf node for {}/{}".format(here, l.getName()), file=sys.stderr)
-            print(e, file=sys.stderr)
-        if None != self._fd:
-          self.idnt('</table></li>')
+      self.addLeaves(h, here)
     return True
 
   def visitPost(self, here):
     if None != self._fd:
       h = here.tail().isHub()
-      if None != h:
+      if None != h and not self._skip.pop():
         self._level = self._level - self._indent
         self.idnt('</ul>')
         self.idnt('</li>')
@@ -460,6 +505,11 @@ class HtmlVisitor(pycpsw.PathVisitor):
     if None != self._fd:
       print('{% extends "tree.html" %}',                  file=fd)
       print('{% block content %}',                        file=fd)
+    # Generate leaf children of origin
+    hub = rp.tail()
+    if None == hub:
+      hub = rp.origin()
+    self.addLeaves( hub, hub )
     rp.explore( self )
     if None != self._fd:
       print('{% endblock content %}',                     file=fd)
@@ -480,16 +530,19 @@ def parseOpts(oargs):
 
   filename = None
   nullDev  = True
+  ipAddr   = None
 
   for opt in opts:
     if opt[0] in ('-h', '--help'):
-      print("Usage: {}  [-f html_file_stem] [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
+      print("Usage: {}  [-f html_file_stem] [-a ip_addr] [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
       print()
       print("          yaml_file            : top-level YAML file to load (required)")
       print("          root_node            : YAML root node (default: \"root\")")
       print("          inc_dir_path         : directory where to look for included YAML files")
       print("                                 default: directory where 'yaml_file' is located")
       print("          -F                   : no YAML Fixup which removes all communication")
+      print("          -f <html_file_stem>  : generate HTML file")
+      print("          -a ip_address        : fixup IP address in YAML")
       print()
       print("    --help/-h                  : This message")
       return None, None, None, None
@@ -497,8 +550,8 @@ def parseOpts(oargs):
       filename = opt[1]
     elif opt[0] in ('-F'):
       nullDev  = False
-
-  fixYaml = Fixup( nullDev )
+    elif opt[0] in ('-a'):
+      ipAddr   = opt[1]
 
   if len(args) > 0:
     yamlFile = args[0]
@@ -514,17 +567,16 @@ def parseOpts(oargs):
   else:
     yamlIncDir = None
 
-  rp = pycpsw.Path.loadYamlFile(
-              yamlFile,
-              yamlRoot,
-              yamlIncDir,
-              fixYaml)
+  
+  rval = dict()
+  rval["HtmlFileNameStem"] = filename
+  rval["YamlFileName"    ] = yamlFile
+  rval["YamlRootName"    ] = yamlRoot
+  rval["YamlIncDirName"  ] = yamlIncDir
+  rval["UseNullDev"      ] = nullDev
+  rval["IpAddress"       ] = ipAddr
 
-  if None != filename:
-    cksum = computeCksum( yamlFile )
-    filename = "{}-{:x}.html".format( filename, cksum )
-
-  return rp, filename, fixYaml.getInfo(), yamlFile
+  return rval
 
 def makeEl(p):
   print("Making el for '{}'".format(p.toString()))
@@ -536,24 +588,35 @@ def makeEl(p):
       pass
   raise pycpsw.InterfaceNotImplementedError("This node has no supported interface")
 
-def writeFile(rp, filename):
+def writeFile(rp, filename, blacklist=None):
   if None != filename:
     fd = io.open(filename,"w")
   else:
     fd = sys.stdout
 
-  vis = HtmlVisitor()
+  vis = HtmlVisitor( blacklist )
   vis.genHtmlFile( rp, fd )
 
   if None != filename:
     fd.close()
   return vis.getDict()
 
-def writeNoFile(rp):
-  vis = HtmlVisitor()
+def writeNoFile(rp, blacklist = None):
+  vis = HtmlVisitor( blacklist )
   vis.genHtmlFile( rp, None )
   return vis.getDict()
 
 if __name__ == '__main__':
-  rp, filename, info, yamlFile = parseOpts( sys.argv )
-  writeFile(rp, filename)
+  optDict  = parseOpts( sys.argv )
+  fixup    = YamlFixup( optDict )
+  yamlFile = optDict["YamlFileName"]
+  rp       = pycpsw.Path.loadYamlFile(
+               yamlFile,
+               optDict["YamlRootName"  ],
+               optDict["YamlIncDirName"],
+               fixup)
+  filename = optDict["HtmlFileNameStem"]
+  if None != filename:
+    cksum = computeCksum( yamlFile )
+    filename = "{}-{:x}.html".format( filename, cksum )
+  writeFile(rp, filename, fixup.getBlacklist())

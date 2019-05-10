@@ -203,13 +203,13 @@ def ticker( period ):
 
 @socketio.on('connect')
 def handle_connect():
-  print("CONN", request.sid)
+  #print("CONN", request.sid)
   session["SUBS"] = set()
 
 @socketio.on('disconnect')
 def handle_disconnect():
-  print("DISCONN", request.sid)
-  print("Session stuff was", session) 
+  #print("DISCONN", request.sid)
+  #print("Session stuff was", session) 
   for el in session["SUBS"]:
     poller.unsubscribe( el )
 
@@ -219,18 +219,30 @@ if __name__ == '__main__':
   global gblInfo
   global treeTemplate
   global theDb
-  rp, filename, gblInfo, yamlFile = genHtml.parseOpts( sys.argv )
-  pg                    = pathGrep.PathGrep( rp, patt = None, asPath = True )
+
   genHtml.setSocketio( socketio )
-  cksum = genHtml.computeCksum( yamlFile )
+
+  optDict      = genHtml.parseOpts( sys.argv )
+
+  fixYaml      = genHtml.Fixup( optDict )
+
+  yamlFile     = optDict["YamlFileName"]
+  rp           = pycpsw.Path.loadYamlFile(
+                   yamlFile,
+                   optDict["YamlRootName"  ],
+                   optDict["YamlIncDirName"],
+                   fixYaml)
+
+  gblInfo      = fixYaml.getInfo()
+
+  pg           = pathGrep.PathGrep( rp, patt = None, asPath = True )
+
+  cksum        = genHtml.computeCksum( yamlFile )
   treeTemplate = "guts-{:x}.html".format( cksum )
   if os.path.isfile("templates/"+treeTemplate):
-    theDb = genHtml.writeNoFile( rp )
+    theDb = genHtml.writeNoFile( rp, fixYaml.getBlacklist() )
   else:
     print("No template for this YAML file found; must regenerate")
-    theDb = genHtml.writeFile( rp, "templates/"+treeTemplate )
-  for el in theDb:
-    print(el)
+    theDb = genHtml.writeFile( rp, "templates/"+treeTemplate, fixYaml.getBlacklist() )
   socketio.start_background_task( ticker, pollInterval )
   socketio.run(app, host='0.0.0.0', port=8000)
-  print("Leaving App")
