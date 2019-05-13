@@ -95,7 +95,7 @@ def load_config():
   p = request.args.get("path")
   j = request.args.get("json")
   d = dict()
-  print("POST got request", request.get_data())
+  #print("POST got request", request.get_data())
   try:
     dstr = request.get_data().decode("UTF-8", "strict")
     path = rp.findByName( p )
@@ -115,10 +115,11 @@ def save_config():
   j = request.args.get("json")
   d = dict()
   if request.method == "POST":
-    print("POST got request", request.get_data())
-    print("POST got path",    p)
+    #print("POST got request", request.get_data())
+    #print("POST got path",    p)
   else:
-    print("GET")
+    #print("GET")
+    pass
   try:
     path      = rp.findByName( p )
     tmpl      = request.get_data().decode("UTF-8", "strict")
@@ -139,16 +140,16 @@ def foo(path):
 
 @socketio.on('message')
 def handle_message(data):
-  print("GOT A MESSAGE" + data)
+  #print("GOT A MESSAGE" + data)
 
 @socketio.on('chat message')
 def handle_chat_message(data):
-  print("GOT A CHAT MESSAGE" + data)
+  #print("GOT A CHAT MESSAGE" + data)
 
 @socketio.on('subscribe')
 def handle_subscription(data):
-  print("SUBS", request.sid)
-  print("session", session)
+  #print("SUBS", request.sid)
+  #print("session", session)
   ids = json.loads(data)
    # Get first results fast
   res = Poller.Result() 
@@ -161,31 +162,31 @@ def handle_subscription(data):
       subs.add( el )
       res.submit( el )
       elp = el.getPath()
-      print(elp.toString())
+      #print(elp.toString())
     except KeyError:
       print("Warning: key {} not found".format(anid))
   res.complete()
 
 @socketio.on('unsubscribe')
 def handle_unsubscription(data):
-  print("UNSUBS", request.sid)
+  #print("UNSUBS", request.sid)
   ids = json.loads(data)
   subs = session["SUBS"]
   for anid in ids:
-    print("checking ", anid)
+    #print("checking ", anid)
     try:
       el  = theDb[anid]
       poller.unsubscribe( el )
       subs.discard( el )
       leave_room( el.getHtmlId() )
-      print(theDb[anid].getPath().toString())
+      #print(theDb[anid].getPath().toString())
     except KeyError:
       print("Warning: key {} not found".format(anid))
 
 @socketio.on('setVal')
 def handle_setVal(data):
   l = json.loads(data)
-  print("SETVAL", data)
+  #print("SETVAL", data)
   for anid, v in l:
     try:
       theDb[anid].setVal( v )
