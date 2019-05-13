@@ -142,10 +142,12 @@ def foo(path):
 @socketio.on('message')
 def handle_message(data):
   #print("GOT A MESSAGE" + data)
+  pass
 
 @socketio.on('chat message')
 def handle_chat_message(data):
   #print("GOT A CHAT MESSAGE" + data)
+  pass
 
 @socketio.on('subscribe')
 def handle_subscription(data):
