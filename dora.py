@@ -10,6 +10,7 @@ import time
 import pycpsw
 import io
 import os
+import socket
 import re
 from   infoCollector  import InfoCollector, LongIntCollector
 import pathGrep
@@ -23,8 +24,6 @@ socketio = SocketIO(app, async_mode='eventlet', logger=False, engineio_logger=Fa
 poller   = Poller.Poller()
 
 pollInterval = 2 #seconds
-
-deviceTopName = "Test Top"
 
 doraApp = DoraApp.DoraApp()
 
@@ -41,10 +40,11 @@ def index():
     items.append({"key": "IP Address:", "val": gblInfo["ipAddr"], "esc": True})
   except KeyError:
     pass
+  items.append({"key": "Host Name:", "val": socket.gethostname(), "esc": True})
   if None != doraApp.getDebugProbesPath():
     items.append({"key": "Debug Probes File:", "val": "<a href=/debugProbes>download</a>", "esc": False})
   return render_template('info.html',
-    deviceTopName = deviceTopName,
+    deviceTopName = topLevelName,
     items         = items
     )
 
@@ -58,8 +58,8 @@ def getDebugProbes():
 
 
 @app.route('/tree')
-def hello_world():
-  return render_template(treeTemplate, deviceTopName = deviceTopName)
+def expert_tree():
+  return render_template(treeTemplate, deviceTopName = topLevelName)
 
 @app.route('/getVal')
 def get_val():
@@ -215,6 +215,7 @@ if __name__ == '__main__':
   global gblInfo
   global treeTemplate
   global theDb
+  global topLevelName
 
   genHtml.setSocketio( socketio )
 
@@ -225,6 +226,8 @@ if __name__ == '__main__':
   if None == fixYaml:
     # use default
     fixYaml    = YamlFixup.YamlFixup( optDict, sys.argv )
+
+  topLevelName = doraApp.getTopLevelName()
 
   yamlFile     = optDict["YamlFileName"]
   rp           = pycpsw.Path.loadYamlFile(
