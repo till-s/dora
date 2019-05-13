@@ -117,6 +117,7 @@ def save_config():
   if request.method == "POST":
     #print("POST got request", request.get_data())
     #print("POST got path",    p)
+    pass
   else:
     #print("GET")
     pass
