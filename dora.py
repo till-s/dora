@@ -14,6 +14,7 @@ import re
 from   infoCollector  import InfoCollector, LongIntCollector
 import pathGrep
 import DoraApp
+import YamlFixup
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
@@ -223,7 +224,7 @@ if __name__ == '__main__':
 
   if None == fixYaml:
     # use default
-    fixYaml    = genHtml.Fixup( optDict )
+    fixYaml    = YamlFixup.YamlFixup( optDict, sys.argv )
 
   yamlFile     = optDict["YamlFileName"]
   rp           = pycpsw.Path.loadYamlFile(
