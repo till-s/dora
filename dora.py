@@ -16,6 +16,7 @@ from   infoCollector  import InfoCollector, LongIntCollector
 import pathGrep
 import DoraApp
 import YamlFixup
+from   zeroconf       import ServiceInfo, Zeroconf
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
@@ -236,6 +237,8 @@ if __name__ == '__main__':
                    optDict["YamlIncDirName"],
                    fixYaml)
 
+  httpPort     = optDict["HttpPort"]
+
   doraApp.initApp( rp )
 
   gblInfo      = fixYaml.getInfo()
@@ -249,5 +252,16 @@ if __name__ == '__main__':
   else:
     print("No template for this YAML file found; must regenerate")
     theDb = genHtml.writeFile( rp, "templates/"+treeTemplate, fixYaml.getBlacklist() )
-  socketio.start_background_task( ticker, pollInterval )
-  socketio.run(app, host='0.0.0.0', port=8000)
+
+  serviceInfo = ServiceInfo("_http._tcp.local.",
+                            topLevelName+"._http._tcp.local.",
+                            socket.inet_aton("127.0.0.1"), httpPort, 0, 0,
+                            {'port': str(httpPort)}, socket.gethostname() + ".local.")
+  zeroconf    = Zeroconf()
+  zeroconf.register_service( serviceInfo )
+  try :
+    socketio.start_background_task( ticker, pollInterval )
+    socketio.run(app, host='0.0.0.0', port=httpPort)
+  finally:
+    zeroconf.unregister_service( serviceInfo )
+    zeroconf.close()

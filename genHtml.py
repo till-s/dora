@@ -498,10 +498,11 @@ def parseOpts(oargs):
   filename = None
   nullDev  = True
   ipAddr   = None
+  httpPort = 8000
 
   for opt in opts:
     if opt[0] in ('-h', '--help'):
-      print("Usage: {}  [-f html_file_stem] [-a ip_addr] [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
+      print("Usage: {}  [-f html_file_stem] [-p httpPort] [-a ip_addr] [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
       print()
       print("          yaml_file            : top-level YAML file to load (required)")
       print("          root_node            : YAML root node (default: \"root\")")
@@ -519,6 +520,8 @@ def parseOpts(oargs):
       nullDev  = False
     elif opt[0] in ('-a'):
       ipAddr   = opt[1]
+    elif opt[0] in ('-p'):
+      httpPort = opt[1]
 
   if len(args) > 0:
     yamlFile = args[0]
@@ -542,6 +545,7 @@ def parseOpts(oargs):
   rval["YamlIncDirName"  ] = yamlIncDir
   rval["UseNullDev"      ] = nullDev
   rval["IpAddress"       ] = ipAddr
+  rval["HttpPort"        ] = httpPort
 
   return rval
 
