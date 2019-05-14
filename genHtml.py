@@ -491,7 +491,7 @@ def parseOpts(oargs):
 
   ( opts, args ) = getopt.getopt(
                       oargs[1:],
-                      "hFf:",
+                      "hFf:a:p:",
                       ["help",
                       ])
 
@@ -521,7 +521,7 @@ def parseOpts(oargs):
     elif opt[0] in ('-a'):
       ipAddr   = opt[1]
     elif opt[0] in ('-p'):
-      httpPort = opt[1]
+      httpPort = int( opt[1] )
 
   if len(args) > 0:
     yamlFile = args[0]
