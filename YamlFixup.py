@@ -18,10 +18,10 @@ class YamlFixup(pycpsw.YamlFixup):
     if self.useNullDev_:
       rootNode["class"].set("NullDev")
 
+    if None != self.setIp_:
+      rootNode["ipAddr"].set(self.setIp_)
     n = pycpsw.YamlFixup.findByName(rootNode, "ipAddr")
     if n.IsDefined() and not n.IsNull():
-      if None != self.setIp_:
-        n["ipAddr"].set(self.setIp_)
       self.ip_ = n.getAs()
 
   def getInfo(self):
