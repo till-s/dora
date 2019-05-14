@@ -16,7 +16,7 @@ from   infoCollector  import InfoCollector, LongIntCollector
 import pathGrep
 import DoraApp
 import YamlFixup
-from   zeroconf       import ServiceInfo, Zeroconf
+from   zeroconf       import ServiceInfo, Zeroconf, DNSQuestion, _TYPE_A, _CLASS_IN
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
@@ -257,11 +257,30 @@ if __name__ == '__main__':
     print("No template for this YAML file found; must regenerate")
     theDb = genHtml.writeFile( rp, "templates/"+treeTemplate, fixYaml.getBlacklist() )
 
-  serviceInfo = ServiceInfo("_http._tcp.local.",
-                            topLevelName+"._http._tcp.local.",
-                            socket.inet_aton("127.0.0.1"), httpPort, 0, 0,
-                            {'port': str(httpPort)}, socket.gethostname() + ".local.")
+  myname = socket.getfqdn()
+  islocl = (myname.find(".") < 0)
+  if islocl:
+    myname = myname + ".local."
+  try:
+    myaddr = socket.inet_aton( socket.gethostbyname( myname ) )
+  except:
+    myaddr = None
+
+  serviceInfo = ServiceInfo(type_      = "_http._tcp.local.",
+                            name       = topLevelName+"._http._tcp.local.",
+                            address    = myaddr,
+                            port       = httpPort, 
+                            properties = {'port': str(httpPort)},
+                            server     = myname)
   zeroconf    = Zeroconf()
+  # resolve our address via mdns:
+  if None == myaddr:
+    if not serviceInfo.request( zeroconf, 5000 ):
+      raise RuntimeError("Unable to find my address for {}".format(myname))
+  if islocl:
+    q = DNSQuestion( myname, _TYPE_A, _CLASS_IN )
+    # track future updates
+    zeroconf.add_listener( serviceInfo, q )
   zeroconf.register_service( serviceInfo )
   try :
     socketio.start_background_task( ticker, pollInterval )
