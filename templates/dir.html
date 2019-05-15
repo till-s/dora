@@ -1,7 +1,9 @@
 {%- autoescape false -%}
 {%- filter indent(width=level, first=True) -%}
-<div class="dropdown loadSaveConfig caret">
+<div class="dropdown loadSaveConfig {{caret|default('caret',false)}}">
+    {%- autoescape true -%}
 	<button class="dropbutton">{{name}}</button>
+    {%- endautoescape   -%}
     <div    class="dropdown-container">
 	<div    class="dropdown-content">
 	<label>Load Configuration<input type="file" class="loadConfig"> </label>

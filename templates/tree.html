@@ -425,7 +425,12 @@ function connectEvents() {
 <body>
 <h1>Tree View of {{deviceTopName}}</h1>
 <a href="/" class="realLink">General Info</a>
-<ul id="theTreeTop" class="dir"> {% block content %}<div id="content">{% endblock %}</div> </ul> 
+<ul id="theTreeTop" class="dir">
+ {%- with caret="", name="/<root>", path="/", level=0 -%}
+ {%  include "dir.html" %}
+ {%- endwith           -%}
+ {% block content %}<div id="content">{% endblock %}</div>
+</ul>
 
 <script>
 //$("#content").load("guts.html", connectEvents);
