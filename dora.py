@@ -98,14 +98,21 @@ def load_config():
   #print("POST got request", request.get_data())
   try:
     dstr = request.get_data().decode("UTF-8", "strict")
-    path = rp.findByName( p )
+    print("config: ", dstr)
+    if None == p:
+      path = rp
+    else:
+      path = rp.findByName( p )
     s    = path.loadConfigFromYamlString( dstr )
     d["result"] = s
   except pycpsw.CPSWError as e:
     s = e.what()
     d["error"]  = s
-  if None != j and j:
+  if None != j and j.upper() == "TRUE":
     s = json.dumps( d )
+  else:
+    s = str(s)
+  #print("POST response data: ", s)
   return Response( s )
     
 
@@ -122,16 +129,19 @@ def save_config():
     #print("GET")
     pass
   try:
-    path      = rp.findByName( p )
+    if None == p:
+      path = rp
+    else:
+      path = rp.findByName( p )
     tmpl      = request.get_data().decode("UTF-8", "strict")
+    print('tmpl', tmpl)
     s         = path.dumpConfigToYamlString(tmpl, None, False)
     d["yaml"] = s
   except pycpsw.CPSWError as e:
     s          = e.what()
     d["error"] = s
-  if None != j and j:
+  if None != j and j.upper() == "TRUE":
     s = json.dumps( d )
-  
   return send_file( io.BytesIO( s.encode("UTF-8") ), mimetype="application/x-yaml", as_attachment=True, attachment_filename="config.yaml")
 
 @app.route('/<path:path>')
