@@ -31,6 +31,26 @@ def setSocketio(sio):
   global _socketio
   _socketio = sio
 
+
+class ElDict(object):
+
+  # JS integer range is only 2**64 - 2**53
+  @staticmethod
+  def computeHash(s):
+    return CityHash32( s )
+
+  def __init__(self):
+    super(ElDict, self).__init__()
+    self.dict_ = dict()
+
+  def store(self, el):
+    self.dict_[ el.getHash() ] = el
+
+  def lkup(self, hashKey):
+    return self.dict_[ hashKey ]
+
+
+
 class LeafEl(pycpsw.AsyncIO):
 
   def __init__(self, path, arraysOk = False, vb = None):
@@ -39,7 +59,7 @@ class LeafEl(pycpsw.AsyncIO):
     self._reprUndef  = True
     self._readOnly   = True
     self._writeOnly  = False
-    self._hash       = CityHash32( path.toString() )
+    self._hash       = ElDict.computeHash( path.toString() )
     self._id         = "v_{:d}".format(self._hash)
     self._refcnt     = 0
     self._res        = list()
@@ -313,7 +333,7 @@ class HtmlVisitor(pycpsw.PathVisitor):
     super(HtmlVisitor, self).__init__()
     self._level  = 0
     self._id     = 0
-    self._dict   = dict()
+    self._dict   = ElDict()
     self._fd     = sys.stdout
     self._skip   = []
     if None != blacklist:
@@ -373,8 +393,6 @@ class HtmlVisitor(pycpsw.PathVisitor):
           try:
             el = ELT( pn )
             tag, clss, atts, xtra, xcol = el.getHtml( self._level )
-            # JS integer range is only 2**64 - 2**53
-            h  = el.getHash()
 
             if None != self._fd:
               if _useTemplates:
@@ -397,7 +415,7 @@ class HtmlVisitor(pycpsw.PathVisitor):
                 self.idnt('{:<{}s}</{}></td><td>{}</td><td>{}</td></tr>'.format('', 2, tag, html.escape(xcol), html.escape(l.getDescription())))
 
             self._id = self._id+1
-            self._dict[h] = el
+            self._dict.store( el )
             break
           except pycpsw.InterfaceNotImplementedError:
             pass
@@ -468,7 +486,7 @@ class HtmlVisitor(pycpsw.PathVisitor):
 
   def genHtmlFile(self, rp, fd):
     self._fd   = fd
-    self._dict = {}
+    self._dict = ElDict()
     if None != self._fd:
       print('{% extends "tree.html" %}',                  file=fd)
       print('{% block content %}',                        file=fd)

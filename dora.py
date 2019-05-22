@@ -169,7 +169,7 @@ def handle_subscription(data):
   subs = session["SUBS"]
   for anid in ids:
     try:
-      el  = theDb[anid]
+      el  = theDb.lkup(anid)
       join_room( el.getHtmlId() )
       poller.subscribe( el )
       subs.add( el )
@@ -188,11 +188,11 @@ def handle_unsubscription(data):
   for anid in ids:
     #print("checking ", anid)
     try:
-      el  = theDb[anid]
+      el  = theDb.lkup(anid)
       poller.unsubscribe( el )
       subs.discard( el )
       leave_room( el.getHtmlId() )
-      #print(theDb[anid].getPath().toString())
+      #print(theDb.lkup(anid).getPath().toString())
     except KeyError:
       print("Warning: key {} not found".format(anid))
 
@@ -202,7 +202,7 @@ def handle_setVal(data):
   #print("SETVAL", data)
   for anid, v in l:
     try:
-      theDb[anid].setVal( v )
+      theDb.lkup(anid).setVal( v )
     except KeyError:
       print("Warning: key {} not found".format(anid))
     
