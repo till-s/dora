@@ -38,10 +38,11 @@ def index():
     ]:
     items.append( coll.collectInfo() )
   try:
-    items.append({"key": "IP Address:", "val": gblInfo["ipAddr"], "esc": True})
+    items.append({"key": "IP Address:", "val": gblInfo["ipAddr"],             "esc": True})
   except KeyError:
     pass
-  items.append({"key": "Host Name:", "val": socket.gethostname(), "esc": True})
+  items.append({"key": "Host Name:",    "val": socket.gethostname(),          "esc": True})
+  items.append({"key": "CPSW Version:", "val": pycpsw.getCPSWVersionString(), "esc": True})
   if None != doraApp.getDebugProbesPath():
     items.append({"key": "Debug Probes File:", "val": "<a href=/debugProbes>download</a>", "esc": False})
   return render_template('info.html',
