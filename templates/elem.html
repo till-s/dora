@@ -1,0 +1,12 @@
+<td>{% autoescape true %}{{name}}{% endautoescape %}</td>
+<td><{{tag}} id={{id}} class="leaf {{classes}}" {{atts}}>
+    {%- for xtra in xtras %}
+        {{xtra}}
+   {%- endfor %}
+</{{tag}}></td>
+{%- if xcol!=None %-}
+<td>{{xcol}}</td>
+{%- endif         %-}
+{%- if desc!=None %-}
+<td>{% autoescape true %}{{desc}}{% endautoescape %}</td>
+{%- endif         %-}

@@ -1,13 +1,7 @@
 {%- autoescape false -%}
 {%- filter indent(width=level, first=True) -%}
-<tr><td>{% autoescape true %}{{name}}{% endautoescape %}</td>
-    <td><{{tag}} id={{id}} class="leaf {{classes}}" {{atts}}>
-        {%- for xtra in xtras %}
-            {{xtra}}
-        {%- endfor %}
-    </{{tag}}></td>
-    <td>{{xcol}}</td>
-    <td>{% autoescape true %}{{desc}}{% endautoescape %}</td>
+<tr>
+    {% include "elem.html" %}
 </tr>
 {%- endfilter -%}
 {%- endautoescape -%}
