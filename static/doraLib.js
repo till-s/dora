@@ -23,14 +23,18 @@ function gather(l, n) {
 }
 
 function findUpDir( nod ) {
-	var par = nod.parentNode;
-	while ( ! par.classList.contains("dir") ) {
-		par = par.parentNode;
+	if ( null == nod ) {
+		return nod;
 	}
-	if ( par.id == "theTreeTop" ) {
+	do {
+		nod = nod.parentNode;
+		if ( null == nod || null == nod.classList )
+			return null;
+	} while ( ! nod.classList.contains("dir") );
+	if ( nod.id == "theTreeTop" ) {
 		return null;
 	}
-	return par;
+	return nod;
 }
 
 function assemblePath( nod ) {
@@ -138,6 +142,9 @@ function updateVal_1(el, isHex, val)
 function updateVal( el ) {
 	if ( typeof(el.cachedValue) != "undefined" ) {
 		updateVal_1( el, isHexFmt( el ), el.cachedValue );
+		if ( el.updateValCallback ) {
+			el.updateValCallback( el );
+		}
 	}
 }
 
@@ -253,10 +260,15 @@ function connectEvents() {
     window.treeSocket.on('update', function(data) {
         var dd = JSON.parse( data );
         for (i=0; i<dd.length; i++) {
-			var el = document.getElementById( dd[i][0] );
-            el.cachedValue = dd[i][1];
-			if ( document.activeElement != el ) {
-				updateVal( el );
+			var el     = document.getElementById( dd[i][0] );
+            var newVal = dd[i][1];
+			if (       typeof( el.cachedValue ) == "undefined"
+			      || (     typeof( newVal         ) != "undefined"
+                       &&  newVal != el.cachedValue ) ) {
+	            el.cachedValue = newVal;
+				if ( document.activeElement != el ) {
+					updateVal( el );
+				}
 			}
 		}
     });
@@ -288,6 +300,9 @@ function connectEvents() {
 		}
 		// So this goes into the readback when blurred
 		this.cachedValue = v;
+		if ( this.updateValCallback ) {
+			this.updateValCallback( this );
+		}
 		var l = [];
 		var p = [];
 		p.push( id2Numeric( this.id ) );
@@ -316,23 +331,26 @@ function connectEvents() {
 		}
 	});
 
-	$(document).on("mouseover", ".hexFmt",
+	$(document).on("mouseover", ".toolTipper",
 		function() {
-			console.log("OVER");
+			//console.log("OVER");
 			if ( typeof(this.tooltipTimer) != "undefined" && this.tooltipTimer ) {
 				clearTimeout( this.tooltipTimer );
 				this.tooltipTimer = null;
 			}
 			var tip = this.parentNode.getElementsByClassName("tooltip")[0];
+			if ( ! tip && this.parentNode.parentNode ) {
+				tip = this.parentNode.parentNode.getElementsByClassName("tooltip")[0];
+			}
 			this.tooltipTimer = setTimeout( function( tip ) {
-					console.log("TIMEOUT: " + tip);
+					//console.log("TIMEOUT: " + tip);
 					if ( ! tip.classList.contains("show") ) {
 						tip.classList.add("show")
 					}
 			}, 2000, tip);
-			console.log("set timeout: " + this.tooltipTimer);
+			//console.log("set timeout: " + this.tooltipTimer);
 	});
-	$(document).on("mouseout", ".hexFmt",
+	$(document).on("mouseout", ".toolTipper",
 		function() {
 			var tip = this.parentNode.getElementsByClassName("tooltip")[0];
 			var timer = this.tooltipTimer;
@@ -367,7 +385,7 @@ function connectEvents() {
 		var path   = lnk[0].href;
 		var reader = new FileReader();
 
-		console.log("from template; path " + path);
+		//console.log("from template; path " + path);
 
 		reader.addEventListener('loadend', function(event) {
 			if ( event.type == "loadend" ) {
@@ -384,6 +402,7 @@ function connectEvents() {
 	$(document).on("change", ".loadConfig", function() {
 			var path   = assemblePath( this.parentNode );	
 			var reader = new FileReader();
+console.log("loading config ", path);
 
 			reader.addEventListener('loadend', function(event) {
 					if ( event.type === "loadend" ) {
@@ -391,7 +410,7 @@ function connectEvents() {
 							this.result,
 							function(data) {
 								var d = JSON.parse( data );
-								console.log("POST Received " + JSON.parse( data ));
+								//console.log("POST Received " + JSON.parse( data ));
 								e = d["error"];
 								if ( e ) {
 									alert("Load Configuration Failed: " + e);

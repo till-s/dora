@@ -1,6 +1,6 @@
 {%- autoescape false -%}
 {%- filter indent(width=level, first=True) -%}
-<input type="checkbox" id="c_{{id}}" class="hexFmt{{checked}}"{{checked}}>
+<input type="checkbox" id="c_{{id}}" class="hexFmt{{checked}} toolTipper"{{checked}}>
 <div class="tooltip">
     {%- autoescape true -%}
     <p>Toggle Hex Display Format.</p>

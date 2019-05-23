@@ -1,0 +1,82 @@
+#miscTable, #outputTable, #allChannels {
+    width:        100%;
+    border-style: solid;
+}
+
+table caption {
+    font-weight: bold;
+    font-size:   large;
+    padding-top: 40px;
+}
+
+
+#allChannels .chnllab {
+	font-weight: bold;
+    min-width:   150px;
+}
+
+#allChannels tr {
+    padding: 0px;
+}
+
+#allChannelsRow {
+    vertical-align: top;
+}
+
+#allChannels .colmn0, #allChannels .colmn0 *, #outputTable .leaf.trigSrc0  {
+    background-color: #d0f0a0;
+}
+#allChannels .colmn1, #allChannels .colmn1 *, #outputTable .leaf.trigSrc1 {
+    background-color: #d0e090;
+}
+#allChannels .colmn2, #allChannels .colmn2 *, #outputTable .leaf.trigSrc2 {
+    background-color: #d0d080;
+}
+#allChannels .colmn3, #allChannels .colmn3 *, #outputTable .leaf.trigSrc3 {
+    background-color: #d0c070;
+}
+#allChannels .colmn4, #allChannels .colmn4 *, #outputTable .leaf.trigSrc4 {
+    background-color: #d0b060;
+}
+#allChannels .colmn5, #allChannels .colmn5 *, #outputTable .leaf.trigSrc5 {
+    background-color: #d0a050;
+}
+#allChannels .colmn6, #allChannels .colmn6 *, #outputTable .leaf.trigSrc6 {
+    background-color: #d09040;
+}
+
+.tablab {
+  width:  150px;
+}
+
+.isModal {
+	display: none;
+}
+
+.isModal.show {
+	display: table-row;
+}
+
+label input[type="file"] {
+    display:  none;
+}
+
+form {
+    margin: 0px;
+}
+
+.configButton {
+    border-style:     none;
+}
+
+#miscTable .leaf {
+    max-width: 200px;
+}
+
+h1 {
+    text-align: center;
+}
+
+.configButton:hover {
+    background-color: #d0d0d0;
+}

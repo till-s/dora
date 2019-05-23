@@ -5,14 +5,22 @@
 <link href="general.css" type="text/css" rel="stylesheet">
 <title>General Information</title>
 </head>
-<body>
+<body class="generalPage">
 <h1>{{deviceTopName}}</h1>
 <h2>General Information</h2>
 <table>
 {%- for it in items %}
 <tr><td>{{it.key}}</td><td>{%- if it.esc -%}{{it.val}}{%- else -%}{%- autoescape false -%}{{it.val}}{%- endautoescape %}{%- endif -%}</td></tr>
 {%- endfor          %}
+<tr><td>
+<a href=simple>Trigger Controls</a>
+</td></tr>
+<tr><td>
+<a href=tree>Tree View (Detailed Expert Panel)</a>
+</td></tr>
+<tr><td>
+<a href=doralogo>Dora</a>
+</td></tr>
 </table>
-<a href=tree>Tree View</a>
 </body>
 </html>

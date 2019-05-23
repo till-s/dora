@@ -8,3 +8,11 @@
 h1 {
   font-size: larger;
 }
+
+body.generalPage {
+  background: center / contain no-repeat url("dora.jpg");
+}
+
+body.generalPage * {
+  background-color: rgba(0,0,0,0);
+}

@@ -6,6 +6,7 @@ import genHtml
 import Poller
 import sys
 import threading
+import regex
 import time
 import pycpsw
 import io
@@ -13,10 +14,10 @@ import os
 import socket
 import re
 from   infoCollector  import InfoCollector, LongIntCollector
-import pathGrep
 import DoraApp
 import YamlFixup
 from   zeroconf       import ServiceInfo, Zeroconf, DNSQuestion, _TYPE_A, _CLASS_IN
+import genSimple
 
 app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
@@ -33,8 +34,8 @@ doraApp = DoraApp.DoraApp()
 def index():
   items = []
   for coll in [
-    InfoCollector   (pg, "Firmware Build:", ".*AxiVersion/BuildStamp"),
-    LongIntCollector(pg, "Git Hash:      ", ".*AxiVersion/GitHash", "{:x}", "LE")
+    InfoCollector   (theDb.pg, "Firmware Build:", ".*AxiVersion/BuildStamp"),
+    LongIntCollector(theDb.pg, "Git Hash:      ", ".*AxiVersion/GitHash", "{:x}", "LE")
     ]:
     items.append( coll.collectInfo() )
   try:
@@ -63,17 +64,21 @@ def getDebugProbes():
 def expert_tree():
   return render_template(treeTemplate, deviceTopName = topLevelName)
 
+@app.route('/simple')
+def simple_tree():
+  return render_template(smplTemplate, deviceTopName = topLevelName)
+
 @app.route('/getVal')
 def get_val():
   p = request.args.get("path")
   d = dict()
   if None != p:
-    paths = pg( p )
+    paths = theDb.pg( p )
     try:
       d1 = list() 
       for path in paths:
         with genHtml.makeEl( path ) as el:
-          d1.append({"name" : path.toString(), "value": el.getVal()} )
+          d1.append({"name" : path.toString(), "value": el[0].getVal()} )
       d["result"] = d1
     except pycpsw.CPSWError as e:
       d["error"]  = e.what()
@@ -84,7 +89,7 @@ def find_by_name():
   p = request.args.get("path")
   d = dict()
   if None != p:
-    paths = pg( p )
+    paths = theDb.pg( p )
     try:
       d["result"] = [ path.toString() for path in paths ]
     except pycpsw.CPSWError as e:
@@ -117,26 +122,35 @@ def load_config():
   return Response( s )
     
 
-@app.route('/saveConfig', methods=["GET", "POST"])
+@app.route('/saveConfig', methods=["POST"])
 def save_config():
   p = request.args.get("path")
   j = request.args.get("json")
+  f = request.args.get("file")
   d = dict()
   if request.method == "POST":
     #print("POST got request", request.get_data())
     #print("POST got path",    p)
     pass
   else:
-    #print("GET")
-    pass
+    # only accept POST to avoid problems with caching
+    print("GET not supported")
+    abort(404)
   try:
     if None == p:
       path = rp
     else:
       path = rp.findByName( p )
-    tmpl      = request.get_data().decode("UTF-8", "strict")
-    print('tmpl', tmpl)
-    s         = path.dumpConfigToYamlString(tmpl, None, False)
+    print("Trying config file 1", f)
+    if None == f:
+      tmpl      = request.get_data().decode("UTF-8", "strict")
+      s         = path.dumpConfigToYamlString(tmpl, None, False)
+    else:
+      if len(f) < 100 and None != regex.match('^config/[^/]+$', f):
+        print("Trying config file", f)
+        s = path.dumpConfigToYamlString(f, None, True)
+      else:
+        raise pycpsw.NotFoundError("Config-file not found on server")
     d["yaml"] = s
   except pycpsw.CPSWError as e:
     s          = e.what()
@@ -149,6 +163,13 @@ def save_config():
 def foo(path):
   return send_from_directory('', path)
 
+@app.route('/doralogo')
+def doralogo():
+  try:
+    return send_from_directory("static", "dora.jpg", as_attachment=False, cache_timeout=1000, mimetype='image/jpeg')
+  except:
+    pass
+  abort(404)
 
 @socketio.on('message')
 def handle_message(data):
@@ -227,9 +248,9 @@ def handle_disconnect():
 
 if __name__ == '__main__':
   global rp
-  global pg
   global gblInfo
   global treeTemplate
+  global smplTemplate
   global theDb
   global topLevelName
 
@@ -258,15 +279,16 @@ if __name__ == '__main__':
 
   gblInfo      = fixYaml.getInfo()
 
-  pg           = pathGrep.PathGrep( rp, patt = None, asPath = True )
-
   cksum        = genHtml.computeCksum( yamlFile )
   treeTemplate = "guts-{:x}.html".format( cksum )
+  smplTemplate = "guts-simple-{:x}.html".format( cksum )
   if os.path.isfile("templates/"+treeTemplate):
     theDb = genHtml.writeNoFile( rp, fixYaml.getBlacklist() )
   else:
     print("No template for this YAML file found; must regenerate")
     theDb = genHtml.writeFile( rp, "templates/"+treeTemplate, fixYaml.getBlacklist() )
+    genSimple.GenSimple( theDb, "templates/"+smplTemplate )
+
 
   myname = socket.getfqdn()
   islocl = (myname.find(".") < 0)

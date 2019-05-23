@@ -14,6 +14,7 @@ import eventlet.semaphore
 import jinja2
 import html
 import subprocess
+import pathGrep
 
 _ReprOther  = 0
 _ReprInt    = 1
@@ -39,9 +40,11 @@ class ElDict(object):
   def computeHash(s):
     return CityHash32( s )
 
-  def __init__(self):
+  def __init__(self, rp):
     super(ElDict, self).__init__()
     self.dict_ = dict()
+    self.rp_   = rp
+    self.pg_   = pathGrep.PathGrep( rp, patt = None, asPath = True )
 
   def store(self, el):
     self.dict_[ el.getHash() ] = el
@@ -49,7 +52,14 @@ class ElDict(object):
   def lkup(self, hashKey):
     return self.dict_[ hashKey ]
 
+  def lkups(self, name):
+    return self.dict_[ ElDict.computeHash(name) ]
 
+  def getRoot(self):
+    return self.rp_
+
+  def pg(self, patt):
+    return self.pg_(patt)
 
 class LeafEl(pycpsw.AsyncIO):
 
@@ -97,7 +107,7 @@ class LeafEl(pycpsw.AsyncIO):
 
   def __enter__(self):
     self.incRef()
-    return self
+    return self, self._val
 
   def __exit__(self, type, value, tb):
     self.decRef()
@@ -262,7 +272,7 @@ class ScalValEl(LeafEl):
       if _useTemplates:
         xcol = j2env.get_template("hexcheck.html").render(id=self.checkId(), checked=checked, level=level)
       else:
-        xcol = '<input type="checkbox" id="c_{:x}" class="hexFmt {}" {}><div class="tooltip"><p>Toggle Hex Display Format.</p><p>(Input format always accepts \'0x\' prefix.)</p></div>'.format( self.checkId(), checked, checked )
+        xcol = '<input type="checkbox" id="c_{:x}" class="hexFmt toolTipper" {}" {}><div class="tooltip"><p>Toggle Hex Display Format.</p><p>(Input format always accepts \'0x\' prefix.)</p></div>'.format( self.checkId(), checked, checked )
     return tag, clss, atts, xtra, xcol
 
   def processGotVal(self, ival):
@@ -329,11 +339,11 @@ class HtmlVisitor(pycpsw.PathVisitor):
   _indent    =  2
   _maxExpand = 10
 
-  def __init__(self, blacklist = None):
+  def __init__(self, rp, blacklist = None):
     super(HtmlVisitor, self).__init__()
     self._level  = 0
     self._id     = 0
-    self._dict   = ElDict()
+    self._dict   = ElDict( rp )
     self._fd     = sys.stdout
     self._skip   = []
     if None != blacklist:
@@ -486,7 +496,7 @@ class HtmlVisitor(pycpsw.PathVisitor):
 
   def genHtmlFile(self, rp, fd):
     self._fd   = fd
-    self._dict = ElDict()
+    self._dict = ElDict( rp )
     if None != self._fd:
       print('{% extends "tree.html" %}',                  file=fd)
       print('{% block content %}',                        file=fd)
@@ -583,7 +593,7 @@ def writeFile(rp, filename, blacklist=None):
   else:
     fd = sys.stdout
 
-  vis = HtmlVisitor( blacklist )
+  vis = HtmlVisitor( rp, blacklist )
   vis.genHtmlFile( rp, fd )
 
   if None != filename:
@@ -591,7 +601,7 @@ def writeFile(rp, filename, blacklist=None):
   return vis.getDict()
 
 def writeNoFile(rp, blacklist = None):
-  vis = HtmlVisitor( blacklist )
+  vis = HtmlVisitor( rp, blacklist )
   vis.genHtmlFile( rp, None )
   return vis.getDict()
 

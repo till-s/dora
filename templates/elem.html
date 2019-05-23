@@ -1,12 +1,24 @@
-<td>{% autoescape true %}{{name}}{% endautoescape %}</td>
+{%- autoescape false -%}
+{%- if name          -%}
+<td class="tablab">{%- autoescape true -%}{{name}}{%- endautoescape -%}</td>
+{%- endif            -%}
 <td><{{tag}} id={{id}} class="leaf {{classes}}" {{atts}}>
     {%- for xtra in xtras %}
         {{xtra}}
    {%- endfor %}
-</{{tag}}></td>
-{%- if xcol!=None %-}
+</{{tag}}>
+{%- if tooltip      -%}
+<div class="tooltip"> <p>
+{%- autoescape true -%}
+{{tooltip}}
+{%- endautoescape   -%}
+</p></div>
+{%- endif           -%}
+</td>
+{%- if xcol != None -%}
 <td>{{xcol}}</td>
-{%- endif         %-}
-{%- if desc!=None %-}
-<td>{% autoescape true %}{{desc}}{% endautoescape %}</td>
-{%- endif         %-}
+{%- endif         -%}
+{%- if desc != None -%}
+<td>{%- autoescape true -%}{{desc}}{%- endautoescape -%}</td>
+{%- endif         -%}
+{%- endautoescape -%}

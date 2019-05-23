@@ -1,0 +1,104 @@
+<!DOCTYPE haml>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.dev.js"></script>
+<link href="general.css" type="text/css" rel="stylesheet">
+<link href="tree.css"   type="text/css" rel="stylesheet">
+<link href="simple.css" type="text/css" rel="stylesheet">
+<title>Trigger Control Panel of {{deviceTopName}}</title>
+<script src="doraLib.js" type="text/javascript"></script>
+</head>
+<body>
+<h1>Trigger Control Panel of {{deviceTopName}}</h1>
+
+ {% block content %}<div id="content">{% endblock %}</div>
+
+<script>
+function updateRateMode(el) {
+    var tbl = el.parentNode.parentNode.parentNode.parentNode;
+    var fItems = tbl.getElementsByClassName("rateModeFixed")
+    var aItems = tbl.getElementsByClassName("rateModeAC")
+    var sItems = tbl.getElementsByClassName("rateModeSeq")
+
+    var l = [ fItems, aItems, sItems ];
+    var len, i, j;
+	for ( j=0; j<l.length; j++ ) {
+		if ( j == el.cachedValue ) {
+            var lj = l[j];
+			for ( i=0; i<lj.length; i++ ) {
+				if ( ! lj[i].classList.contains("show") ) {
+					lj[i].classList.add("show");
+				}
+			}
+		} else {
+		    var lj = l[j];
+			for ( i=0; i<lj.length; i++ ) {
+				lj[i].classList.remove("show");
+			}
+		}
+	}
+}
+
+function updateSourceMode(el) {
+    var tbl = el.parentNode.parentNode.parentNode;
+    var i,j;
+	var l    = [];
+    var srcs = [];
+	var myCol;
+	var newSrc;
+
+	for ( i=0; i<el.classList.length; i++ ) {
+		// enumeration in the class list does not necessarily match colmn[idx] !
+		if ( el.classList[i].match("colmn[0-9]+") ) {
+			myCol  = el.classList[i];
+			l      = tbl.getElementsByClassName( myCol );
+		}
+	}
+
+	for ( i=0; i<el.children.length; i++ ) {
+		if ( i != el.cachedValue ) {
+			srcs.push("trigSrc" + i);
+		} else {
+			newSrc = "trigSrc" + i;
+		}
+	}
+
+    console.log("Update src", l);
+
+	for ( i=0; i<l.length; i++ ) {
+		for ( j=0; j<srcs.length; j++ ) {
+			l[i].classList.remove( srcs[j] );
+		}
+		l[i].classList.add( newSrc );
+	}
+}
+
+
+//$("#content").load("guts.html", connectEvents);
+$(function(){
+connectEvents();
+	var tbl = document.getElementsByClassName("channelTable");
+	var i,j;
+	for ( i = 0; i<tbl.length; i++ ) {
+	    var sel = tbl[i].getElementsByClassName("selRateMode")[0];
+		var leaf = sel.getElementsByClassName("leaf")[0];
+		leaf.updateValCallback = updateRateMode;
+	}
+
+	tbl = document.getElementsByClassName("outputTable");
+	console.log("outtable: ",tbl);
+	for ( i = 0; i<tbl.length; i++ ) {
+	    var sel = tbl[i].getElementsByClassName("selSourceMode")[0];
+		var leaves = sel.getElementsByClassName("leaf");
+		for ( j = 0; j<leaves.length; j++ ) {
+			leaves[j].updateValCallback = updateSourceMode;
+		}
+	}
+});
+
+</script>
+
+</body>
+</html>

@@ -20,7 +20,7 @@ class InfoCollector(object):
     if None == self.path_:
       return None
     with self.makeEl() as el:
-      val = el.getVal()
+      val = el[0].getVal()
     print("GOT VAL: ", val)
     return {"key" : self.title_, "val" : self.fmt_.format( val ), "esc" : True }
 
