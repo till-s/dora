@@ -6,7 +6,7 @@ import genHtml
 import Poller
 import sys
 import threading
-import regex
+import re
 import time
 import pycpsw
 import io
@@ -146,7 +146,7 @@ def save_config():
       tmpl      = request.get_data().decode("UTF-8", "strict")
       s         = path.dumpConfigToYamlString(tmpl, None, False)
     else:
-      if len(f) < 100 and None != regex.match('^config/[^/]+$', f):
+      if len(f) < 100 and None != re.match('^config/[^/]+$', f):
         print("Trying config file", f)
         s = path.dumpConfigToYamlString(f, None, True)
       else:
