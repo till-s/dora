@@ -69,7 +69,7 @@ class LeafEl(pycpsw.AsyncIO):
     self._reprUndef  = True
     self._readOnly   = True
     self._writeOnly  = False
-    self._hash       = ElDict.computeHash( path.toString() )
+    self._hash       = ElDict.computeHash( str( path ) )
     self._id         = "v_{:d}".format(self._hash)
     self._refcnt     = 0
     self._res        = list()
@@ -277,7 +277,7 @@ class ScalValEl(LeafEl):
 
   def processGotVal(self, ival):
     if _ReprString == self.getRepr():
-      print("decoding {}".format(bytearray(ival)))
+      #print("decoding {}".format(bytearray(ival)))
       barr = bytearray(ival)
       try:
         end = barr.index(0)
@@ -360,7 +360,7 @@ class HtmlVisitor(pycpsw.PathVisitor):
       return False
     for p in self._blackl:
       if None != p.match( path.toString() ):
-        print("BLACKLIST MATCH", path)
+        #print("BLACKLIST MATCH", path)
         return True
     return False
 

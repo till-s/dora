@@ -7,7 +7,7 @@ class InfoCollector(object):
     self.title_       = title
     self.fmt_         = fmt
     found = grepper( patt )
-    print("FOUND ",found)
+    #print("FOUND ",found)
     if None != found and len(found) > 0:
       self.path_ = found[0]
     else:
@@ -21,7 +21,7 @@ class InfoCollector(object):
       return None
     with self.makeEl() as el:
       val = el[0].getVal()
-    print("GOT VAL: ", val)
+    #print("GOT VAL: ", val)
     return {"key" : self.title_, "val" : self.fmt_.format( val ), "esc" : True }
 
 class LongIntCollector(InfoCollector):

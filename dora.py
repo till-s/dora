@@ -39,7 +39,8 @@ def index():
     ]:
     items.append( coll.collectInfo() )
   try:
-    items.append({"key": "IP Address:", "val": gblInfo["ipAddr"],             "esc": True})
+    if None != gblInfo["ipAddr"]:
+      items.append({"key": "IP Address:", "val": gblInfo["ipAddr"],             "esc": True})
   except KeyError:
     pass
   items.append({"key": "Host Name:",    "val": socket.gethostname(),          "esc": True})

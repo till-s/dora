@@ -64,7 +64,7 @@ class GenSimple(object):
       print( '<tr><td><p class="caret colmn{} chnllab">Channel {}'.format(i,i), file = self._fd )
       print( '<table id="channelTable{}" class="channelTable nested">'.format(i),   file = self._fd )
       for itm in itms:
-        self.genTab( ".*EvrV2ChannelReg[[]{}]/{}$".format(i,'{}'), [itm], colOff = i, withLab = True)
+        self.genTab( ".*EvrV2ChannelReg[\[]{}]/{}$".format(i,'{}'), [itm], colOff = i, withLab = True)
       print( '</table></p></td></tr',              file = self._fd )
     print( '</tr>',                        file = self._fd )
     print( '</table>',                     file = self._fd )

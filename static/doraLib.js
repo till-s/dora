@@ -262,9 +262,10 @@ function connectEvents() {
         for (i=0; i<dd.length; i++) {
 			var el     = document.getElementById( dd[i][0] );
             var newVal = dd[i][1];
+/*
 			if (       typeof( el.cachedValue ) == "undefined"
 			      || (     typeof( newVal         ) != "undefined"
-                       &&  newVal != el.cachedValue ) ) {
+                       &&  newVal != el.cachedValue ) ) */ {
 	            el.cachedValue = newVal;
 				if ( document.activeElement != el ) {
 					updateVal( el );

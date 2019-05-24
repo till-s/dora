@@ -5,7 +5,7 @@ class YamlFixup(pycpsw.YamlFixup):
   def __init__(self, argDict, args):
     super(YamlFixup, self).__init__()
     self.useNullDev_ = argDict["UseNullDev"]
-    self.ip_         = "<NONE>"
+    self.ip_         = None
     self.setIp_      = argDict["IpAddress" ]
     self.blacklist_  = []
 

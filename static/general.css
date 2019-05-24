@@ -10,7 +10,8 @@ h1 {
 }
 
 body.generalPage {
-  background: center / contain no-repeat url("dora.jpg");
+  background: right / contain no-repeat url("dora.jpg");
+  padding:    10px;
 }
 
 body.generalPage * {
