@@ -14,23 +14,25 @@ import os
 import socket
 import re
 from   infoCollector  import InfoCollector, LongIntCollector
-import DoraApp
+try:
+  import DoraApp
+  doraApp = DoraApp.DoraApp()
+except ModuleNotFoundError:
+  doraApp = None
 import YamlFixup
 from   zeroconf       import ServiceInfo, Zeroconf, DNSQuestion, _TYPE_A, _CLASS_IN
-import genSimple
 
-app      = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
-app.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
+flaskApp = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
+flaskApp.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
 
-socketio = SocketIO(app, async_mode='eventlet', logger=False, engineio_logger=False)
+socketio = SocketIO(flaskApp, async_mode='eventlet', logger=False, engineio_logger=False)
 poller   = Poller.Poller()
 
 pollInterval = 2 #seconds
 
-doraApp = DoraApp.DoraApp()
 
-@app.route('/')
-@app.route('/index.html')
+@flaskApp.route('/')
+@flaskApp.route('/index.html')
 def index():
   items = []
   for coll in [
@@ -45,31 +47,37 @@ def index():
     pass
   items.append({"key": "Host Name:",    "val": socket.gethostname(),          "esc": True})
   items.append({"key": "CPSW Version:", "val": pycpsw.getCPSWVersionString(), "esc": True})
-  if None != doraApp.getDebugProbesPath():
+  if None != doraApp and None != doraApp.getDebugProbesPath():
     items.append({"key": "Debug Probes File:", "val": "<a href=/debugProbes>download</a>", "esc": False})
+  if None != doraApp:
+    appLinks = doraApp.getAppLinks()
+  else:
+    appLinks = None
   return render_template('info.html',
     deviceTopName = topLevelName,
-    items         = items
+    items         = items,
+    appLinks      = appLinks
     )
 
-@app.route('/debugProbes')
+@flaskApp.route('/debugProbes')
 def getDebugProbes():
-  path = doraApp.getDebugProbesPath()
-  if None != path:
-    (d,f) = os.path.split( path )
-    return send_from_directory(d, f, as_attachment=True, cache_timeout=10, mimetype='application/octet-stream')
+  if None != doraApp:
+    path = doraApp.getDebugProbesPath()
+    if None != path:
+      (d,f) = os.path.split( path )
+      return send_from_directory(d, f, as_attachment=True, cache_timeout=10, mimetype='application/octet-stream')
   abort(404)
 
 
-@app.route('/tree')
+@flaskApp.route('/tree')
 def expert_tree():
-  return render_template(treeTemplate, deviceTopName = topLevelName)
+  if None != doraApp:
+    appLinks = doraApp.getAppLinks()
+  else:
+    appLinks = None
+  return render_template(treeTemplate, deviceTopName = topLevelName, appLinks = appLinks)
 
-@app.route('/simple')
-def simple_tree():
-  return render_template(smplTemplate, deviceTopName = topLevelName)
-
-@app.route('/getVal')
+@flaskApp.route('/getVal')
 def get_val():
   p = request.args.get("path")
   d = dict()
@@ -85,7 +93,7 @@ def get_val():
       d["error"]  = e.what()
   return Response( json.dumps( d  ) )
 
-@app.route("/findByName")
+@flaskApp.route("/findByName")
 def find_by_name():
   p = request.args.get("path")
   d = dict()
@@ -97,7 +105,7 @@ def find_by_name():
       d["error"]  = e.what()
   return Response( json.dumps( d  ) )
 
-@app.route('/loadConfig', methods=["POST"])
+@flaskApp.route('/loadConfig', methods=["POST"])
 def load_config():
   p = request.args.get("path")
   j = request.args.get("json")
@@ -123,7 +131,7 @@ def load_config():
   return Response( s )
     
 
-@app.route('/saveConfig', methods=["POST"])
+@flaskApp.route('/saveConfig', methods=["POST"])
 def save_config():
   p = request.args.get("path")
   j = request.args.get("json")
@@ -160,11 +168,11 @@ def save_config():
     s = json.dumps( d )
   return send_file( io.BytesIO( s.encode("UTF-8") ), mimetype="application/x-yaml", as_attachment=True, attachment_filename="config.yaml")
 
-@app.route('/<path:path>')
+@flaskApp.route('/<path:path>')
 def foo(path):
   return send_from_directory('', path)
 
-@app.route('/doralogo')
+@flaskApp.route('/doralogo')
 def doralogo():
   try:
     return send_from_directory("static", "dora.jpg", as_attachment=False, cache_timeout=1000, mimetype='image/jpeg')
@@ -251,7 +259,6 @@ if __name__ == '__main__':
   global rp
   global gblInfo
   global treeTemplate
-  global smplTemplate
   global theDb
   global topLevelName
 
@@ -259,13 +266,18 @@ if __name__ == '__main__':
 
   optDict      = genHtml.parseOpts( sys.argv )
 
-  fixYaml      = doraApp.getYamlFixup( optDict, sys.argv )
+  topLevelName = optDict["TopLevelName"]
+
+  if None != doraApp:
+    fixYaml      = doraApp.getYamlFixup( optDict, sys.argv )
+    topLevelName = doraApp.getTopLevelName()
+  else:
+    fixYaml      = None
 
   if None == fixYaml:
     # use default
     fixYaml    = YamlFixup.YamlFixup( optDict, sys.argv )
 
-  topLevelName = doraApp.getTopLevelName()
 
   yamlFile     = optDict["YamlFileName"]
   rp           = pycpsw.Path.loadYamlFile(
@@ -276,20 +288,25 @@ if __name__ == '__main__':
 
   httpPort     = optDict["HttpPort"]
 
-  doraApp.initApp( rp )
+  if None != doraApp:
+    print("Init DoraApp")
+    doraApp.initApp( rp, flaskApp )
+  else:
+    print("No Init DoraApp")
 
   gblInfo      = fixYaml.getInfo()
 
   cksum        = genHtml.computeCksum( yamlFile )
   treeTemplate = "guts-{:x}.html".format( cksum )
-  smplTemplate = "guts-simple-{:x}.html".format( cksum )
   if os.path.isfile("templates/"+treeTemplate):
     theDb = genHtml.writeNoFile( rp, fixYaml.getBlacklist() )
+    if None != doraApp:
+      doraApp.genHtml(theDb, "{:x}".format(cksum), False)
   else:
     print("No template for this YAML file found; must regenerate")
     theDb = genHtml.writeFile( rp, "templates/"+treeTemplate, fixYaml.getBlacklist() )
-    genSimple.GenSimple( theDb, "templates/"+smplTemplate )
-
+    if None != doraApp:
+      doraApp.genHtml(theDb, "{:x}".format(cksum), True)
 
   myname = socket.getfqdn()
   islocl = (myname.find(".") < 0)
@@ -318,7 +335,7 @@ if __name__ == '__main__':
   zeroconf.register_service( serviceInfo )
   try :
     socketio.start_background_task( ticker, pollInterval )
-    socketio.run(app, host='0.0.0.0', port=httpPort)
+    socketio.run(flaskApp, host='0.0.0.0', port=httpPort)
   finally:
     zeroconf.unregister_service( serviceInfo )
     zeroconf.close()

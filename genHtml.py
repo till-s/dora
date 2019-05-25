@@ -527,10 +527,11 @@ def parseOpts(oargs):
   nullDev  = True
   ipAddr   = None
   httpPort = 8000
+  appName  = "Dora"
 
   for opt in opts:
     if opt[0] in ('-h', '--help'):
-      print("Usage: {}  [-f html_file_stem] [-p httpPort] [-a ip_addr] [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
+      print("Usage: {}  [-n AppName] [-f html_file_stem] [-p httpPort] [-a ip_addr] [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
       print()
       print("          yaml_file            : top-level YAML file to load (required)")
       print("          root_node            : YAML root node (default: \"root\")")
@@ -538,6 +539,7 @@ def parseOpts(oargs):
       print("                                 default: directory where 'yaml_file' is located")
       print("          -F                   : no YAML Fixup which removes all communication")
       print("          -f <html_file_stem>  : generate HTML file")
+      print("          -n AppName           : Top-level title used on web-pages")
       print("          -a ip_address        : fixup IP address in YAML")
       print()
       print("    --help/-h                  : This message")
@@ -550,6 +552,8 @@ def parseOpts(oargs):
       ipAddr   = opt[1]
     elif opt[0] in ('-p'):
       httpPort = int( opt[1] )
+    elif opt[0] in ('-n'):
+      appName  = opt[1]
 
   if len(args) > 0:
     yamlFile = args[0]
@@ -574,6 +578,7 @@ def parseOpts(oargs):
   rval["UseNullDev"      ] = nullDev
   rval["IpAddress"       ] = ipAddr
   rval["HttpPort"        ] = httpPort
+  rval["TopLevelName"    ] = appName
 
   return rval
 

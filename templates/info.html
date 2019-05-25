@@ -13,13 +13,17 @@
 <tr><td>{{it.key}}</td><td>{%- if it.esc -%}{{it.val}}{%- else -%}{%- autoescape false -%}{{it.val}}{%- endautoescape %}{%- endif -%}</td></tr>
 {%- endfor          %}
 <tr><td>
-<a href=simple>Trigger Controls</a>
+{%- if appLinks -%}
+{%- for l in appLinks -%}
+  <a href="{{l.ref}}">{%- autoescape true -%}{{l.txt}}{%- endautoescape -%}</a>
+{%- endfor -%}
+{%- endif  -%}
 </td></tr>
 <tr><td>
 <a href=tree>Tree View (Detailed Expert Panel)</a>
 </td></tr>
 <tr><td>
-<a href=doralogo>Dora (&copy;Abril Straumann)</a>
+<a href=doralogo>Dora (&copy;Abril Straumann Ehrenberg)</a>
 </td></tr>
 </table>
 </body>

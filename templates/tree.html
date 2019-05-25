@@ -18,7 +18,11 @@
  {% block content %}<div id="content">{% endblock %}</div>
 </ul>
 <p><a href="/"       class="realLink">General Info</a></p>
-<p><a href="/simple" class="realLink">Trigger Controls</a></p>
+{%- if appLinks -%}
+{%- for l in appLinks -%}
+  <p><a href="{{l}}['ref']" class="realLink">{%- autoescape true -%}{{l}}['txt']{%- endautoescape -%}</a></p>
+{%- endfor -%}
+{%- endif  -%}
 
 <script>
 //$("#content").load("guts.html", connectEvents);
