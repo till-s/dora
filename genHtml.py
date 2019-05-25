@@ -519,12 +519,12 @@ def parseOpts(oargs):
 
   ( opts, args ) = getopt.getopt(
                       oargs[1:],
-                      "hFf:a:p:",
+                      "hTf:a:p:n:",
                       ["help",
                       ])
 
   filename = None
-  nullDev  = True
+  nullDev  = False
   ipAddr   = None
   httpPort = 8000
   appName  = "Dora"
@@ -537,7 +537,7 @@ def parseOpts(oargs):
       print("          root_node            : YAML root node (default: \"root\")")
       print("          inc_dir_path         : directory where to look for included YAML files")
       print("                                 default: directory where 'yaml_file' is located")
-      print("          -F                   : no YAML Fixup which removes all communication")
+      print("          -T                   : Test mode: do not do any communication")
       print("          -f <html_file_stem>  : generate HTML file")
       print("          -n AppName           : Top-level title used on web-pages")
       print("          -a ip_address        : fixup IP address in YAML")
@@ -546,8 +546,8 @@ def parseOpts(oargs):
       return None, None, None, None
     elif opt[0] in ('-f'):
       filename = opt[1]
-    elif opt[0] in ('-F'):
-      nullDev  = False
+    elif opt[0] in ('-T'):
+      nullDev  = True
     elif opt[0] in ('-a'):
       ipAddr   = opt[1]
     elif opt[0] in ('-p'):
