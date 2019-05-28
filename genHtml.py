@@ -519,7 +519,7 @@ def parseOpts(oargs):
 
   ( opts, args ) = getopt.getopt(
                       oargs[1:],
-                      "hTf:a:p:n:",
+                      "hTGf:a:p:n:",
                       ["help",
                       ])
 
@@ -528,16 +528,18 @@ def parseOpts(oargs):
   ipAddr   = None
   httpPort = 8000
   appName  = "Dora"
+  forceGen = False
 
   for opt in opts:
     if opt[0] in ('-h', '--help'):
-      print("Usage: {}  [-n AppName] [-f html_file_stem] [-p httpPort] [-a ip_addr] [-h] [-F] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
+      print("Usage: {}  [-n AppName] [-f html_file_stem] [-p httpPort] [-a ip_addr] [-h] [-T] [-G] [--help] yaml_file [root_node [inc_dir_path]]".format(oargs[0]))
       print()
       print("          yaml_file            : top-level YAML file to load (required)")
       print("          root_node            : YAML root node (default: \"root\")")
       print("          inc_dir_path         : directory where to look for included YAML files")
       print("                                 default: directory where 'yaml_file' is located")
       print("          -T                   : Test mode: do not do any communication")
+      print("          -G                   : Force regeneration of HTML files");
       print("          -f <html_file_stem>  : generate HTML file")
       print("          -n AppName           : Top-level title used on web-pages")
       print("          -a ip_address        : fixup IP address in YAML")
@@ -554,6 +556,8 @@ def parseOpts(oargs):
       httpPort = int( opt[1] )
     elif opt[0] in ('-n'):
       appName  = opt[1]
+    elif opt[0] in ('-G'):
+      forceGen = True
 
   if len(args) > 0:
     yamlFile = args[0]
@@ -579,6 +583,7 @@ def parseOpts(oargs):
   rval["IpAddress"       ] = ipAddr
   rval["HttpPort"        ] = httpPort
   rval["TopLevelName"    ] = appName
+  rval["RegenerateHtml"  ] = forceGen
 
   return rval
 

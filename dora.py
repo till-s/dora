@@ -298,12 +298,15 @@ if __name__ == '__main__':
 
   cksum        = genHtml.computeCksum( yamlFile )
   treeTemplate = "guts-{:x}.html".format( cksum )
-  if os.path.isfile("templates/"+treeTemplate):
+  if not optDict["RegenerateHtml"] and os.path.isfile("templates/"+treeTemplate):
     theDb = genHtml.writeNoFile( rp, fixYaml.getBlacklist() )
     if None != doraApp:
       doraApp.genHtml(theDb, "{:x}".format(cksum), False)
   else:
-    print("No template for this YAML file found; must regenerate")
+    if optDict["RegenerateHtml"]:
+      print("Regenerating HTML")
+    else:
+      print("No template for this YAML file found; must regenerate")
     theDb = genHtml.writeFile( rp, "templates/"+treeTemplate, fixYaml.getBlacklist() )
     if None != doraApp:
       doraApp.genHtml(theDb, "{:x}".format(cksum), True)
