@@ -20,7 +20,7 @@
 <p><a href="/"       class="realLink">General Info</a></p>
 {%- if appLinks -%}
 {%- for l in appLinks -%}
-  <p><a href="{{l}}['ref']" class="realLink">{%- autoescape true -%}{{l}}['txt']{%- endautoescape -%}</a></p>
+  <p><a href="{{l['ref']}}" class="realLink">{%- autoescape true -%}{{l['txt']}}{%- endautoescape -%}</a></p>
 {%- endfor -%}
 {%- endif  -%}
 
