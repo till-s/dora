@@ -80,3 +80,11 @@ h1 {
 .configButton:hover {
     background-color: #d0d0d0;
 }
+
+#miscTable #LoopBackMode.selOpt .leaf.selct1 {
+    background-color: #d56c95;
+}
+
+#miscTable #LoopBackMode.selOpt .leaf.selct2 {
+    background-color: #d56c95;
+}

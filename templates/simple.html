@@ -75,11 +75,34 @@ function updateSourceMode(el) {
 	}
 }
 
+function updateSel(el) {
+
+	for ( i=0; i<el.classList.length; i++ ) {
+		// enumeration in the class list does not necessarily match colmn[idx] !
+		if ( el.classList[i].match("selct[0-9]+") ) {
+			el.classList.remove( el.classList[i] );
+			break;
+		}
+	}
+	el.classList.add( "selct" + el.value );
+
+}
+
 
 $(function(){
 	connectEvents();
-	var tbl = document.getElementsByClassName("channelTable");
+	var tbl;
+    var sel;
+	var leaf;
 	var i,j;
+
+	sel  = document.getElementsByClassName("selOpt");
+	for ( i = 0; i<sel.length; i++ ) {
+    	leaf = sel[i].getElementsByClassName("leaf")[0];
+		leaf.updateValCallback = updateSel;
+	}
+
+	tbl = document.getElementsByClassName("channelTable");
 	for ( i = 0; i<tbl.length; i++ ) {
 	    var sel = tbl[i].getElementsByClassName("selRateMode")[0];
 		var leaf = sel.getElementsByClassName("leaf")[0];
@@ -87,7 +110,6 @@ $(function(){
 	}
 
 	tbl = document.getElementsByClassName("outputTable");
-	console.log("outtable: ",tbl);
 	for ( i = 0; i<tbl.length; i++ ) {
 	    var sel = tbl[i].getElementsByClassName("selSourceMode")[0];
 		var leaves = sel.getElementsByClassName("leaf");
