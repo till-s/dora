@@ -12,6 +12,7 @@ import pycpsw
 import io
 import os
 import socket
+import jinja2
 import re
 from   infoCollector  import InfoCollector, LongIntCollector
 try:
@@ -290,6 +291,10 @@ if __name__ == '__main__':
 
   if None != doraApp:
     print("Init DoraApp")
+    flaskApp.jinja_loader = jinja2.ChoiceLoader([
+                                flaskApp.jinja_loader,
+                                jinja2.PackageLoader('DoraApp', 'templates')
+                            ])
     doraApp.initApp( rp, flaskApp )
   else:
     print("No Init DoraApp")
