@@ -22,6 +22,7 @@ except ModuleNotFoundError:
   doraApp = None
 import YamlFixup
 from   zeroconf       import ServiceInfo, Zeroconf, DNSQuestion, _TYPE_A, _CLASS_IN
+import ExtractYaml
 
 flaskApp = Flask(__name__, static_url_path='', static_folder='static', template_folder='templates')
 flaskApp.config["SECRET_KEY"] = '7e065b7a145789087577f777da89ca062aa18101'
@@ -263,10 +264,13 @@ if __name__ == '__main__':
   global theDb
   global topLevelName
 
+  print("getSocketio")
   genHtml.setSocketio( socketio )
 
-  optDict      = genHtml.parseOpts( sys.argv )
+  print("parseOpts")
+  optDict      = genHtml.parseOpts( sys.argv, False )
 
+  print("parseOpts")
   topLevelName = optDict["TopLevelName"]
 
   if None != doraApp:
@@ -280,7 +284,11 @@ if __name__ == '__main__':
     fixYaml    = YamlFixup.YamlFixup( optDict, sys.argv )
 
 
+  if None == optDict["YamlFileName"]:
+    optDict["YamlFileName"] = ExtractYaml.extract() + "/000TopLevel.yaml"
+
   yamlFile     = optDict["YamlFileName"]
+
   rp           = pycpsw.Path.loadYamlFile(
                    yamlFile,
                    optDict["YamlRootName"  ],
@@ -331,16 +339,25 @@ if __name__ == '__main__':
                             port       = httpPort, 
                             properties = {'port': str(httpPort)},
                             server     = myname)
+  print("Creating Zeroconf")
   zeroconf    = Zeroconf()
   # resolve our address via mdns:
   if None == myaddr:
+    print("issuing serviceInfo.request")
     if not serviceInfo.request( zeroconf, 5000 ):
-      raise RuntimeError("Unable to find my address for {}".format(myname))
+      #raise RuntimeError("Unable to find my address for {}".format(myname))
+      print("WARNING: Unable to find my address for {} -- cannot register with zeroconf".format(myname))
+    print("done serviceInfo.request")
   if islocl:
+    print("issuing DNSQuestion")
     q = DNSQuestion( myname, _TYPE_A, _CLASS_IN )
+    print("done DNSQuestion")
     # track future updates
     zeroconf.add_listener( serviceInfo, q )
+    print("done adding listener")
+  print("registering zeroconf")
   zeroconf.register_service( serviceInfo )
+  print("registering zeroconf done")
   try :
     socketio.start_background_task( ticker, pollInterval )
     socketio.run(flaskApp, host='0.0.0.0', port=httpPort)

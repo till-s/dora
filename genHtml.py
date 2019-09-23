@@ -515,7 +515,7 @@ def computeCksum(yamlFile):
   cksum = int( res.stdout.split()[0] )
   return cksum
 
-def parseOpts(oargs):
+def parseOpts(oargs, requireYaml=True):
 
   ( opts, args ) = getopt.getopt(
                       oargs[1:],
@@ -562,8 +562,11 @@ def parseOpts(oargs):
   if len(args) > 0:
     yamlFile = args[0]
   else:
-    print("usage: {} [options] <yaml_file> [yaml_root_node_name='root' [yaml_inc_dir=''] ]".format(oargs[0]))
-    sys.exit(1)
+    if requireYaml:
+      print("usage: {} [options] <yaml_file> [yaml_root_node_name='root' [yaml_inc_dir=''] ]".format(oargs[0]))
+      sys.exit(1)
+    else:
+      yamlFile = None
   if len(args) > 1:
     yamlRoot = args[1]
   else:
@@ -573,7 +576,6 @@ def parseOpts(oargs):
   else:
     yamlIncDir = None
 
-  
   rval = dict()
   rval["HtmlFileNameStem"] = filename
   rval["YamlFileName"    ] = yamlFile
